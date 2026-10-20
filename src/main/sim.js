@@ -1,23 +1,27 @@
 'use strict';
 
-// 하드웨어 없이 테스트하는 시뮬레이션.
-// 0.1초마다 p1 에 가짜 세기를 넣고, A 키를 누르는 동안은 큰 값(펀치).
-// (SpikerBox 바이트 스트림 시뮬레이션은 Phase 3)
+// 하드웨어 없이 테스트하는 가짜 SpikerBox. 실제 장치처럼 바이트 스트림(HWT 메시지 + 10 kHz 프레임)을 만들어
+// 실제 파서와 RMS 경로를 그대로 거친다. A 키를 누르는 동안 진폭이 서서히 올라가고, 떼면 내려간다.
 
-const TICK_MS = 100;
+const { encodeFrames, encodeMessage } = require('./spikerbox');
 
-function rand(min, max) {
-  return Math.floor(min + Math.random() * (max - min + 1));
-}
+const TICK_MS = 10;
+const SAMPLES_PER_TICK = 100; // 10 kHz
+const SAMPLE_RATE = 10000;
+const SINE_HZ = 80;
+const REST_AMP = 5;
+const HELD_AMP = 400;
+const FOLLOW = 0.06; // 틱마다 목표를 따라가는 비율
 
 class Simulator {
-  /** feed(player, rawValue) */
+  /** feed(Buffer): SpikerBox 바이트를 넘겨 준다 */
   constructor(feed) {
     this.feed = feed;
     this.enabled = false;
     this.held = { a: false };
     this.timer = null;
-    this.level = 0;
+    this.amp = REST_AMP;
+    this.n = 0; // 지금까지 만든 샘플 수 (사인 위상 유지)
   }
 
   setEnabled(on) {
@@ -26,6 +30,7 @@ class Simulator {
     this.enabled = on;
     this.held = { a: false };
     if (on) {
+      this.feed(encodeMessage('HWT:MUSCLESS;'));
       this.timer = setInterval(() => this.tick(), TICK_MS);
     } else {
       clearInterval(this.timer);
@@ -41,12 +46,17 @@ class Simulator {
     this.held = { a: false };
   }
 
+  /** 10 ms 분량(100샘플)을 만들어 넘긴다 */
   tick() {
-    // 근전도처럼: 누르고 있으면 서서히 올라가고, 떼면 서서히 내려가며 약간 흔들린다
-    const held = this.held.a;
-    this.level += ((held ? 7000 : 150) - this.level) * (held ? 0.3 : 0.4);
-    const noise = this.level * 0.12 * (Math.random() * 2 - 1);
-    this.feed('p1', Math.max(0, Math.round(this.level + noise + rand(0, 60))));
+    this.amp += ((this.held.a ? HELD_AMP : REST_AMP) - this.amp) * FOLLOW;
+    const frames = [];
+    for (let i = 0; i < SAMPLES_PER_TICK; i++) {
+      const phase = (2 * Math.PI * SINE_HZ * this.n++) / SAMPLE_RATE;
+      const noise = (Math.random() * 2 - 1) * 0.5;
+      const v = 512 + this.amp * (Math.sin(phase) + noise);
+      frames.push([Math.max(0, Math.min(1023, Math.round(v)))]);
+    }
+    this.feed(encodeFrames(frames));
   }
 }
 

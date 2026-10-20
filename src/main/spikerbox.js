@@ -58,6 +58,12 @@ class SpikerBoxParser {
     return this._channels;
   }
 
+  /** 자동 감지에서 가장 많이 나온 채널 수의 득표율(0~1). 확정 전이면 0. 잡음과 진짜 스트림을 가르는 데 쓴다. */
+  get confidence() {
+    if (this._channels === null || !this._voteCount) return 0;
+    return this._votes[this._channels] / this._voteCount;
+  }
+
   push(buf) {
     const out = { frames: [], messages: [] };
     for (let i = 0; i < buf.length; i++) this._byte(buf[i] & 0xFF, out);

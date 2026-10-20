@@ -291,7 +291,7 @@ module.exports = { EmgWindow, strengthOf, RestMeter };
 
 ### Phase 3 — 시리얼 · 시뮬레이터 · main 연결 + START 스케치
 
-- [ ] **4. `src/main/serial.js` 역할 판별**
+- [x] **4. `src/main/serial.js` 역할 판별**
 
 ```js
 class SerialManager extends EventEmitter {
@@ -317,22 +317,22 @@ function classifyProbe({ messages, frameCount })  // HWT 메시지가 있거나 
 - 기존 원칙 유지: USB가 아닌 포트는 건너뛰기, 2초마다 재검색, 끊기면 잊기, 열기 실패면 다음 검색 때 다시.
 - 9600 텍스트 포트는 기존 `ReadlineParser` 방식. `P1`/`P2` 줄 지원은 없앤다.
 
-- [ ] **5. `src/main/sim.js` 가짜 SpikerBox**
+- [x] **5. `src/main/sim.js` 가짜 SpikerBox**
 - 켜지면 `serial.feedSpikerBox('시뮬레이션', encodeMessage('HWT:MUSCLESS;'))`를 한 번 보낸다.
 - 10 ms마다 1채널 샘플 100개(=10 kHz)를 만들어 `encodeFrames`로 보낸다. 값 = `512 + 진폭·(사인 80 Hz + 잡음)`, 0~1023으로 자름.
 - 진폭은 `A` 키를 누르는 동안 서서히 올라가고(목표 ≈ 400), 떼면 서서히 내려간다(쉬는 잡음 ≈ 5). 지금 `tick`의 따라가기 방식을 그대로 쓴다.
 - `S` 키는 지금처럼 main에서 `game.start`.
 
-- [ ] **6. `main.js` · `preload.js` 연결**
+- [x] **6. `main.js` · `preload.js` 연결**
 - `const emgWin = new EmgWindow()`. `serial.on('emg', v => emgWin.add(v))`.
 - 100 ms 타이머: `w = emgWin.take()`. 있으면 `live = { rms: w.rms, strength: strengthOf(w.rms, settings.emg.restRms) }`, 영점 측정 중이면 `rest.add(w.rms, now)`(끝나면 `settings.emg.restRms = rest.result()` 저장), 그리고 `game.sample('p1', live.strength, now())`. 측정 중이 아닐 때는 game이 무시하므로 항상 불러도 된다.
 - `serial.on('start', ...)`는 그대로.
 - IPC 추가: `emg:zero`(RestMeter 시작), `serial:setRole(path, role)`(`role`이 `'auto'`면 삭제 → 저장 → 그 포트 다시 열기).
 - payload 추가: `emg: { rms, strength, restRms, zeroing }`. `ports`는 새 `status()` 형식.
 - `preload.js`: `zeroEmg()`, `setPortRole(path, role)`.
-- 관리자 화면 최소 수정: 연결 카드에 SpikerBox / START 두 줄(연결 여부와 포트, HWT), "영점 잡기" 버튼, 채널 선택. 모양은 Phase 4.
+- 관리자 화면 최소 수정: 연결 카드에 SpikerBox / START 두 줄(연결 여부와 포트, HWT), "영점 잡기" 버튼, 채널 선택. 모양은 Phase 4. **(두 채팅 진행 시 채팅 B가 Phase 4에서 만든다. 채팅 A는 하지 않았다.)**
 
-- [ ] **9. START 스케치** — 6장 그대로 `arduino/start_button/start_button.ino` 작성.
+- [x] **9. START 스케치** — 6장 그대로 `arduino/start_button/start_button.ino` 작성.
 
 **테스트 (Phase 3)**
 - `parseLine`: `START`, ` start\r`, `ALIVE`, `P1 100`(→ null), 빈 줄.

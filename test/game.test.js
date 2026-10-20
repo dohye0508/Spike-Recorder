@@ -11,7 +11,8 @@ const hall = require('../src/main/hall');
 const { Store, normalizeSettings } = require('../src/main/store');
 
 // serial.js 는 serialport 를 불러오므로 parseLine 만 따로 검사
-const { parseLine } = require('../src/main/serial');
+const { parseLine, classifyProbe } = require('../src/main/serial');
+const { Simulator } = require('../src/main/sim');
 
 const { SpikerBoxParser, parseMessageText, encodeFrames, encodeMessage } = require('../src/main/spikerbox');
 const { EmgWindow, strengthOf, RestMeter } = require('../src/main/emg');
@@ -230,13 +231,17 @@ test('v1 명예의 전당 파일(player 있음)을 읽으면 player 는 버린�
 
 console.log('시리얼 줄 형식');
 
-test('P1/P2/START 파싱, 형식에 안 맞는 줄은 무시', () => {
-  assert.deepStrictEqual(parseLine('P1 523\r'), { type: 'sample', player: 'p1', value: 523 });
-  assert.deepStrictEqual(parseLine('  p2   80 '), { type: 'sample', player: 'p2', value: 80 });
-  assert.deepStrictEqual(parseLine('START\r'), { type: 'start' });
-  for (const bad of ['', 'P1', 'P3 10', 'P1 1.5', 'P1 abc', 'STARTX', 'hello P1 5', 'P1 5 6']) {
-    assert.strictEqual(parseLine(bad), null, bad);
-  }
+test('START/ALIVE 파싱, 나머지는 무시', () => {
+  assert.deepStrictEqual(parseLine('START'), { type: 'start' });
+  assert.deepStrictEqual(parseLine(' start\r'), { type: 'start' });
+  assert.deepStrictEqual(parseLine('ALIVE'), { type: 'alive' });
+  for (const bad of ['P1 100', '', 'STARTX', 'hello']) assert.strictEqual(parseLine(bad), null, bad);
+});
+
+test('classifyProbe: HWT 가 있거나 프레임 20개 이상이면 SpikerBox', () => {
+  assert.strictEqual(classifyProbe({ messages: [{ type: 'HWT', value: 'MUSCLESS' }], frameCount: 0 }), true);
+  assert.strictEqual(classifyProbe({ messages: [], frameCount: 25 }), true);
+  assert.strictEqual(classifyProbe({ messages: [{ type: 'EVNT', value: '1' }], frameCount: 5 }), false);
 });
 
 console.log('SpikerBox 파서 · 근전도 신호');
@@ -341,6 +346,32 @@ test('RestMeter 는 3초 평균', () => {
   assert.strictEqual(m.add(30, 3000), true);
   assert.strictEqual(m.running, false);
   assert.strictEqual(m.result(), 20);
+});
+
+test('가짜 SpikerBox: A 를 누른 구간의 RMS 가 뗀 구간보다 10배 이상', () => {
+  const chunks = [];
+  const sim = new Simulator((buf) => chunks.push(buf));
+  sim.setEnabled(true); // HWT 메시지 한 번
+  sim.setEnabled(false);
+  const parser = new SpikerBoxParser({ channels: 1 });
+  const win = new EmgWindow();
+  const measure = (ticks) => {
+    let rms = 0;
+    for (let i = 0; i < ticks; i++) {
+      sim.tick();
+      const r = parser.push(chunks.splice(0).reduce((a, b) => Buffer.concat([a, b]), Buffer.alloc(0)));
+      win.add(r.frames.map((f) => f[0]));
+      if ((i + 1) % 10 === 0) rms = win.take().rms; // 10틱 = 100 ms
+    }
+    return rms;
+  };
+  assert.ok(chunks.length === 1 && chunks[0].includes(Buffer.from('HWT:MUSCLESS;')));
+  chunks.length = 0;
+  const rest = measure(100);
+  sim.key('a', true);
+  const held = measure(200);
+  assert.ok(rest > 1, 'rest ' + rest);
+  assert.ok(held > rest * 10, held + ' vs ' + rest);
 });
 
 console.log(`\n${passed}개 통과`);

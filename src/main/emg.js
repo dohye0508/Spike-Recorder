@@ -64,6 +64,10 @@ class RestMeter {
     return false;
   }
 
+  stop() {
+    this._running = false;
+  }
+
   get running() {
     return this._running;
   }

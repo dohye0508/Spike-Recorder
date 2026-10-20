@@ -13,5 +13,7 @@ contextBridge.exposeInMainWorld('api', {
   setSim: (on) => ipcRenderer.invoke('sim:set', on),
   simKey: (key, down) => ipcRenderer.invoke('sim:key', key, down),
   toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen'),
+  zeroEmg: () => ipcRenderer.invoke('emg:zero'),
+  setPortRole: (path, role) => ipcRenderer.invoke('serial:setRole', path, role),
   quit: () => ipcRenderer.invoke('app:quit'),
 });

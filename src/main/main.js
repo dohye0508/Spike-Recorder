@@ -6,6 +6,7 @@ const { Game } = require('./game');
 const hall = require('./hall');
 const { Store, normalizeSettings } = require('./store');
 const { SerialManager } = require('./serial');
+const { EmgWindow, RestMeter, strengthOf } = require('./emg');
 const { Simulator } = require('./sim');
 
 const argv = process.argv.slice(1);
@@ -21,6 +22,13 @@ if (!app.requestSingleInstanceLock()) {
 
 let win = null;
 let store, settings, records, history, lastResult = null, game, serial, sim;
+const emgWin = new EmgWindow();
+const rest = new RestMeter(3000);
+let live = { rms: 0, strength: 0 };
+let zeroStartedAt = 0;
+const EMG_WINDOW_MS = 100;
+const ZERO_TIMEOUT_MS = 10000;
+const SIM_PORT = '시뮬레이션';
 let lastSaveError = null;
 let lastPayload = '';
 
@@ -54,6 +62,7 @@ function payload() {
     result: lastResult,
     hall: records,
     ports: serial.status(t),
+    emg: { rms: Math.round(live.rms * 10) / 10, strength: Math.round(live.strength * 10) / 10, restRms: settings.emg.restRms, zeroing: rest.running },
     settings,
     sim: sim.enabled,
     platform: process.platform,
@@ -158,7 +167,22 @@ function setupIpc() {
     push();
     return settings;
   });
-  ipcMain.handle('sim:set', (_e, on) => { sim.setEnabled(on); push(); });
+  ipcMain.handle('emg:zero', () => { rest.start(now()); zeroStartedAt = now(); push(); });
+  ipcMain.handle('serial:setRole', (_e, p, role) => {
+    if (typeof p !== 'string' || !['auto', 'spikerbox', 'start'].includes(role)) return false;
+    const roles = { ...settings.portRoles };
+    if (role === 'auto') delete roles[p]; else roles[p] = role;
+    settings = normalizeSettings({ ...settings, portRoles: roles });
+    saveSettings();
+    serial.reopen(p);
+    push();
+    return true;
+  });
+  ipcMain.handle('sim:set', (_e, on) => {
+    sim.setEnabled(on);
+    if (!on) serial.dropVirtual(SIM_PORT);
+    push();
+  });
   ipcMain.handle('sim:key', (_e, key, down) => {
     if (!sim.enabled) return;
     if (key === 's') {
@@ -197,15 +221,11 @@ app.whenReady().then(() => {
     },
   });
 
-  serial = new SerialManager();
+  serial = new SerialManager({ getSettings: () => settings });
+  serial.on('emg', (values) => emgWin.add(values));
   serial.on('start', () => { if (game.start(now())) lastResult = null; push(); });
-  serial.on('sample', (player, value) => { game.sample(player, value, now()); push(); });
 
-  sim = new Simulator((player, value) => {
-    serial.markSeen(player, '시뮬레이션');
-    game.sample(player, value, now());
-    push();
-  });
+  sim = new Simulator((buf) => serial.feedSpikerBox(SIM_PORT, buf));
 
   setupMenu();
   setupIpc();
@@ -213,7 +233,24 @@ app.whenReady().then(() => {
   serial.start();
   if (START_SIM) sim.setEnabled(true);
 
-  // 시간 흐름(측정 제한 8초, 판정 카운트다운)과 연결 상태 갱신
+  // 100 ms 마다: 그 사이 들어온 SpikerBox 샘플을 한 구간 세기로 만들어 게임에 넣는다
+  setInterval(() => {
+    const w = emgWin.take();
+    const t = now();
+    if (!w) {
+      live = { rms: 0, strength: 0 }; // SpikerBox 끊김: 이 구간은 건너뛴다
+      if (rest.running && t - zeroStartedAt > ZERO_TIMEOUT_MS) rest.stop();
+      return;
+    }
+    live = { rms: w.rms, strength: strengthOf(w.rms, settings.emg.restRms) };
+    if (rest.running && rest.add(w.rms, t)) {
+      settings = normalizeSettings({ ...settings, emg: { ...settings.emg, restRms: rest.result() } });
+      saveSettings();
+    }
+    game.sample('p1', live.strength, t);
+  }, EMG_WINDOW_MS);
+
+  // 시간 흐름(측정 제한 8초)과 연결 상태 갱신
   setInterval(() => { game.tick(now()); push(); }, 50);
 
   powerSaveBlocker.start('prevent-display-sleep');
