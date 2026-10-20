@@ -13,6 +13,9 @@ const { Store, normalizeSettings } = require('../src/main/store');
 // serial.js 는 serialport 를 불러오므로 parseLine 만 따로 검사
 const { parseLine } = require('../src/main/serial');
 
+const { SpikerBoxParser, parseMessageText, encodeFrames, encodeMessage } = require('../src/main/spikerbox');
+const { EmgWindow, strengthOf, RestMeter } = require('../src/main/emg');
+
 let passed = 0;
 function test(name, fn) {
   try {
@@ -209,6 +212,110 @@ test('P1/P2/START 파싱, 형식에 안 맞는 줄은 무시', () => {
   for (const bad of ['', 'P1', 'P3 10', 'P1 1.5', 'P1 abc', 'STARTX', 'hello P1 5', 'P1 5 6']) {
     assert.strictEqual(parseLine(bad), null, bad);
   }
+});
+
+console.log('SpikerBox 파서 · 근전도 신호');
+
+const F1 = [[0], [8191], [16383], [512]];
+const F2 = [[1, 2], [8192, 100], [16383, 0]];
+const flat = (frames) => [].concat.apply([], frames);
+
+test('1채널·2채널 프레임 왕복', () => {
+  assert.deepStrictEqual(new SpikerBoxParser({ channels: 1 }).push(encodeFrames(F1)).frames, F1);
+  assert.deepStrictEqual(new SpikerBoxParser({ channels: 2 }).push(encodeFrames(F2)).frames, F2);
+});
+
+test('1바이트씩 나눠 넣어도 결과가 같다', () => {
+  const buf = Buffer.concat([encodeFrames(F1), encodeMessage('HWT:MUSCLESS;'), encodeFrames(F1)]);
+  const whole = new SpikerBoxParser({ channels: 1 }).push(buf);
+  const p = new SpikerBoxParser({ channels: 1 });
+  const frames = [];
+  const messages = [];
+  for (const byte of buf) {
+    const r = p.push([byte]);
+    frames.push.apply(frames, r.frames);
+    messages.push.apply(messages, r.messages);
+  }
+  assert.deepStrictEqual(frames, whole.frames);
+  assert.deepStrictEqual(messages, whole.messages);
+  assert.strictEqual(frames.length, 8);
+});
+
+test('프레임 중간의 0x80 바이트는 그 프레임만 버린다', () => {
+  const a = encodeFrames([[100, 200], [300, 400]]);
+  const bad = Buffer.from([0x81]); // 2채널 프레임 중간에 새 시작 바이트
+  const buf = Buffer.concat([a.slice(0, 2), bad, a.slice(4)]);
+  // a[0..1] ch1 of frame1, 끼워 넣은 0x81 로 프레임 재시작 → 이후 a[4..] 는 새 프레임으로 정상 해석되지 않고 버려짐
+  const r = new SpikerBoxParser({ channels: 2 }).push(Buffer.concat([buf, encodeFrames([[7, 8]])]));
+  assert.deepStrictEqual(r.frames[r.frames.length - 1], [7, 8]);
+  assert.ok(r.frames.length < 3);
+});
+
+test('기기 메시지는 frames 에 섞이지 않고, 청크를 중간에서 잘라도 같다', () => {
+  const buf = Buffer.concat([encodeFrames(F1), encodeMessage('HWT:MUSCLESS;'), encodeFrames(F1)]);
+  for (let cut = 1; cut < buf.length; cut++) {
+    const p = new SpikerBoxParser({ channels: 1 });
+    const a = p.push(buf.slice(0, cut));
+    const b = p.push(buf.slice(cut));
+    assert.deepStrictEqual(a.frames.concat(b.frames), F1.concat(F1), 'cut ' + cut);
+    assert.deepStrictEqual(a.messages.concat(b.messages), [{ type: 'HWT', value: 'MUSCLESS' }], 'cut ' + cut);
+  }
+});
+
+test('너무 긴 이스케이프는 버리고 끝낸다', () => {
+  const junk = Buffer.concat([Buffer.from([0xFF, 0xFF, 0x01, 0x01, 0x80, 0xFF]), Buffer.alloc(100, 0x41)]);
+  const r = new SpikerBoxParser({ channels: 1 }).push(Buffer.concat([junk, encodeFrames([[5]])]));
+  assert.deepStrictEqual(r.messages, []);
+  assert.deepStrictEqual(r.frames[r.frames.length - 1], [5]);
+});
+
+test("channels:'auto' 는 2채널을 알아낸다", () => {
+  const frames = [];
+  for (let i = 0; i < 40; i++) frames.push([100 + i, 200 + i]);
+  const p = new SpikerBoxParser();
+  assert.strictEqual(p.channels, null);
+  const r = p.push(encodeFrames(frames));
+  assert.strictEqual(p.channels, 2);
+  assert.ok(r.frames.length > 0);
+  assert.deepStrictEqual(r.frames[r.frames.length - 1], frames[39]);
+  r.frames.forEach((f) => assert.strictEqual(f[1] - f[0], 100));
+});
+
+test('parseMessageText', () => {
+  assert.deepStrictEqual(parseMessageText('HWT:MUSCLESS;EVNT:3;'), [{ type: 'HWT', value: 'MUSCLESS' }, { type: 'EVNT', value: '3' }]);
+  assert.deepStrictEqual(parseMessageText(''), []);
+  assert.deepStrictEqual(parseMessageText('abc;;:x;HWT:A'), [{ type: 'HWT', value: 'A' }]);
+});
+
+test('EmgWindow RMS', () => {
+  const w = new EmgWindow();
+  assert.strictEqual(w.take(), null);
+  w.add(new Array(100).fill(512));
+  assert.strictEqual(w.take().rms, 0);
+  const A = 200;
+  const vals = [];
+  for (let i = 0; i < 1000; i++) vals.push(512 + A * Math.sin((2 * Math.PI * i) / 100)); // 10주기
+  w.add(vals);
+  const t = w.take();
+  assert.ok(Math.abs(t.rms - A / Math.SQRT2) / (A / Math.SQRT2) < 0.01);
+  assert.strictEqual(t.count, 1000);
+  assert.strictEqual(w.take(), null);
+});
+
+test('strengthOf', () => {
+  assert.strictEqual(strengthOf(100, 30), 70);
+  assert.strictEqual(strengthOf(10, 30), 0);
+});
+
+test('RestMeter 는 3초 평균', () => {
+  const m = new RestMeter(3000);
+  m.start(0);
+  assert.strictEqual(m.running, true);
+  assert.strictEqual(m.add(10, 100), false);
+  assert.strictEqual(m.add(20, 1500), false);
+  assert.strictEqual(m.add(30, 3000), true);
+  assert.strictEqual(m.running, false);
+  assert.strictEqual(m.result(), 20);
 });
 
 console.log(`\n${passed}개 통과`);

@@ -195,7 +195,7 @@ Spike Recorder의 FFT는 **화면 표시용**(0~50 Hz, 뇌파 알파파 확인)�
 
 새 파일 2개. 기존 코드는 건드리지 않는다. Electron 없이 테스트로만 검증한다.
 
-- [ ] **1. `src/main/spikerbox.js`**
+- [x] **1. `src/main/spikerbox.js`**
 
 ```js
 const ESC_START = [0xFF, 0xFF, 0x01, 0x01, 0x80, 0xFF];
@@ -221,7 +221,7 @@ module.exports = { SpikerBoxParser, parseMessageText, encodeFrames, encodeMessag
 - 프레임 처리: 0x80 비트가 켜진 바이트면 모으던 프레임을 버리고 새 프레임을 시작한다. 프레임 밖에서 0x80이 꺼진 바이트는 버린다. 2바이트씩 값을 만들고, 채널 수만큼 모이면 `frames`에 넣는다.
 - `channels: 'auto'`: 처음 프레임 시작 바이트 사이의 간격(바이트 수 / 2)을 30번 세어 가장 많이 나온 값으로 확정한다. 확정 전에는 frames를 내보내지 않는다(버려도 됨). 1~6 범위 밖이면 계속 센다.
 
-- [ ] **2. `src/main/emg.js`**
+- [x] **2. `src/main/emg.js`**
 
 ```js
 class EmgWindow {
