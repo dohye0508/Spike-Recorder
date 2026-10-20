@@ -69,3 +69,18 @@ a:hover { color: #FFD27A; }
   border: 2px solid #4A2E28;
   user-select: text;
 }
+
+.field select {
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 22px;
+  color: #F3E6E1;
+  background: #120807;
+  border: 2px solid #4A2E28;
+}
+#admin select:focus { outline: 2px solid #FFB21E; outline-offset: 2px; }

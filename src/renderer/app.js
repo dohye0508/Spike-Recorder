@@ -41,11 +41,12 @@
     return Math.max(0, Math.min(15, Math.round((v / MAX_SCORE) * 15)));
   }
 
-  function meterHtml(v) {
+  // 왼쪽·오른쪽에 똑같이 놓는 세로 게이지 (아래 1 → 위 15). 같은 값을 두 개에 그린다.
+  function gaugeHtml(v) {
     var level = levelOf(v), html = '';
     for (var i = 15; i >= 1; i--) {
       var c = RAINBOW[i - 1], lit = i <= level;
-      html += '<div style="width:54px;height:24px;border-radius:12px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:15px;' + (lit ? 'background:' + c + ';color:#1A0D0B;box-shadow:0 0 8px ' + c + ',0 0 20px ' + c + '66' : 'background:' + c + '12;color:' + c + '66;border:1px solid ' + c + '30') + '">' + i + '</div>';
+      html += '<div style="flex:1;min-height:0;border-radius:16px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:24px;' + (lit ? 'background:' + c + ';color:#1A0D0B;box-shadow:0 0 10px ' + c + ',0 0 26px ' + c + '66' : 'background:' + c + '12;color:' + c + '66;border:1px solid ' + c + '30') + '">' + i + '</div>';
     }
     return html;
   }
@@ -90,59 +91,59 @@
     return html;
   }
 
-  // 숫자·레벨 미터는 아래 애니메이션 루프가 채운다 (id: p1-digits, p1-meter, p1-level)
-  function playerPanel(p, needed, measuring) {
-    var info = '측정 ' + p.samples + ' / ' + needed + ' · 최고 ' + p.best;
-    var status = measuring
-      ? '<div style="display: flex; flex-direction: column; gap: 8px; width: 270px">' +
-        '<div style="font-size: 22px; color: #E9DAD5">' + info + '</div>' +
-        '<div style="height: 10px; border-radius: 5px; background: #2E1B17; overflow: hidden"><div style="' + p.bar + '"></div></div></div>'
-      : '<div id="p1-level" style="font-size: 22px; color: #B8A29B"></div>';
-    return '<div style="width: 420px; box-sizing: border-box; padding: 32px 28px; border-radius: 24px; display: flex; flex-direction: row; gap: 32px; align-items: center; ' + p.panel + '">' +
-      '<div id="p1-meter" style="display: flex; flex-direction: column; gap: 7px"></div>' +
-      '<div style="display: flex; flex-direction: column; gap: 28px; align-items: flex-start">' +
-      '<div style="font-size: 40px; ' + p.labelStyle + '">PLAYER 1</div>' +
-      '<div id="p1-digits"></div>' + status +
-      '</div></div>';
+  // 배너 아래 줄: 대기 / 측정 / 결과(내 순위)
+  function bannerBottom(phase, g, res) {
+    var h = 'height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; white-space: nowrap';
+    if (phase === 'measuring') {
+      var p = player(P1_COLOR, g.p1.samples, g.samplesNeeded, g.p1.score);
+      return '<div style="' + h + '"><div style="font-size: 30px; color: #E9DAD5">측정 ' + p.samples + ' / ' + g.samplesNeeded + ' · 최고 ' + p.best + '</div>' +
+        '<div style="width: 520px; height: 10px; border-radius: 5px; background: #2E1B17; overflow: hidden"><div style="' + p.bar + '"></div></div></div>';
+    }
+    if (phase === 'result') {
+      var inner;
+      if (res.place) {
+        inner = '<span style="font-size: 60px; color: ' + AMBER + '; text-shadow: 0 0 18px ' + AMBER + ', 0 0 44px ' + AMBER + '80">전체 ' + res.place + '위</span>' +
+          '<span style="font-size: 28px; color: #C9B3AC; margin-left: 20px">' + res.total + '개 기록 중</span>';
+      } else {
+        inner = '<span style="font-size: 44px; color: #C9B3AC">기록이 없습니다</span>';
+      }
+      return '<div style="' + h + '"><div>' + inner + '</div></div>';
+    }
+    return '<div style="' + h + '"><div style="font-size: 46px; color: #E9DAD5">START 버튼을 누르세요</div></div>';
   }
 
-  // 결과 화면 위쪽 문구: 명예의 전당 순위, 그리고 전체 기록 중 순위(5위 밖이어도 알려 준다)
-  function resultLines(r) {
-    var top = '최종 기록', sub = '';
-    if (r) {
-      if (r.rank) top = '명예의 전당 ' + r.rank + '위!';
-      if (r.place) sub = '지금까지 ' + r.total + '개 기록 중 ' + r.place + '위';
-      else if (!r.score) sub = '기록이 없습니다';
-    }
-    return { top: top, sub: sub };
+  // 결과 화면: 순위는 명예의 전당 5위 안이 아니어도 전체 기록 기준으로 알려 준다
+  function resultInfo(r) {
+    return {
+      place: r && r.place ? r.place : 0,
+      total: r ? r.total : 0,
+      rank: r && r.rank ? r.rank : 0
+    };
   }
 
   function renderMain() {
     var g = state.game;
     var phase = g.phase;
-    var needed = g.samplesNeeded;
-    var measuring = phase === 'measuring';
-    var res = resultLines(phase === 'result' ? state.result : null);
-    var labels = { measuring: '5초 동안 힘껏 쥐세요', result: res.top, idle: '다음 경기 대기' };
-    var texts = { measuring: '측정 중', result: '최종 기록', idle: 'START 버튼을 누르세요' };
-    var wc = AMBER;
-    var winnerTextStyle = 'color:' + wc + ';text-shadow:0 0 18px ' + wc + ',0 0 44px ' + wc + '80';
-    var bannerStyle = 'background:#1C0F0D;border:3px solid ' + wc + ';box-shadow:0 0 30px ' + wc + '55, inset 0 0 30px ' + wc + '22';
-    var p1 = player(P1_COLOR, g.p1.samples, needed, g.p1.score);
+    var res = resultInfo(phase === 'result' ? state.result : null);
+    var labels = { idle: '다음 경기 대기', measuring: '5초 동안 힘껏 쥐세요', result: res.rank ? '최종 기록 · 명예의 전당 ' + res.rank + '위!' : '최종 기록' };
+    var bannerStyle = 'background:#1C0F0D;border:3px solid ' + AMBER + ';box-shadow:0 0 30px ' + AMBER + '55, inset 0 0 30px ' + AMBER + '22';
 
-    var banner = '<div style="align-self: center; width: 980px; box-sizing: border-box; padding: 22px 40px 26px; border-radius: 28px; display: flex; flex-direction: column; align-items: center; gap: 4px; ' + bannerStyle + '">' +
+    var banner = '<div style="flex: none; box-sizing: border-box; padding: 18px 40px 16px; border-radius: 28px; display: flex; flex-direction: column; align-items: center; gap: 6px; ' + bannerStyle + '">' +
       '<div style="font-size: 26px; letter-spacing: 0.3em; color: #C9B3AC; white-space: nowrap">' + labels[phase] + '</div>' +
-      '<div style="font-size: 92px; line-height: 1; white-space: nowrap; ' + winnerTextStyle + '">' + texts[phase] + '</div>' +
-      (res.sub ? '<div style="margin-top: 10px; font-size: 28px; color: #E9DAD5; white-space: nowrap">' + res.sub + '</div>' : '') +
+      '<div id="score-digits" style="height: 110px"></div>' +
+      bannerBottom(phase, g, res) +
       '</div>';
 
-    var hall = '<div style="width: 408px; flex: none; min-width: 0; box-sizing: border-box; padding: 28px 32px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 14px">' +
-      '<h2 style="margin: 0 0 6px; font-size: 44px; font-weight: 400; text-align: center; color: #FFB21E; text-shadow: 0 0 14px rgba(255,178,30,0.55)">명예의 전당</h2>' +
+    var hall = '<div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 20px 32px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 10px; overflow: hidden">' +
+      '<h2 style="margin: 0 0 4px; font-size: 44px; font-weight: 400; text-align: center; color: #FFB21E; text-shadow: 0 0 14px rgba(255,178,30,0.55)">명예의 전당</h2>' +
       hallRows(state.hall) + '</div>';
 
-    $('main').innerHTML = banner +
-      '<div style="flex-grow: 1; display: flex; gap: 40px; align-items: stretch; justify-content: center; min-height: 0">' +
-      playerPanel(p1, needed, measuring) + hall +
+    var gauge = function (id) { return '<div id="' + id + '" style="width: 190px; flex: none; display: flex; flex-direction: column; gap: 8px"></div>'; };
+    $('main').innerHTML =
+      '<div style="flex: 1; min-height: 0; display: flex; gap: 54px">' +
+      gauge('gauge-l') +
+      '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 26px">' + banner + hall + '</div>' +
+      gauge('gauge-r') +
       '</div>';
     drawn = { p1: -1 }; // 새로 만든 칸이라 다시 그리기
     drawPlayers();
@@ -166,11 +167,9 @@
       var v = Math.round(shown[k]);
       if (v === drawn[k]) return;
       drawn[k] = v;
-      var color = P1_COLOR;
-      var d = $(k + '-digits'), m = $(k + '-meter'), l = $(k + '-level');
-      if (d) d.innerHTML = Seg.display(Seg.pad(v), 104, color);
-      if (m) m.innerHTML = meterHtml(v);
-      if (l) l.textContent = '레벨 ' + levelOf(v) + ' / 15';
+      var d = $('score-digits'), gl = $('gauge-l'), gr = $('gauge-r');
+      if (d) d.innerHTML = Seg.display(Seg.pad(v), 110, AMBER);
+      if (gl) { var gh = gaugeHtml(v); gl.innerHTML = gh; if (gr) gr.innerHTML = gh; }
     });
   }
 
@@ -239,18 +238,64 @@
     $('pending').textContent = '이름 입력이 필요한 기록 ' + pending + '개';
   }
 
-  function port(name, path, ok, color) {
+  function port(name, detail, ok, color, extra) {
     var dot = 'width:14px;height:14px;border-radius:7px;flex:none;background:' + (ok ? '#4CD964' : '#FF5A47') + ';box-shadow:0 0 10px ' + (ok ? '#4CD964' : '#FF5A47');
-    return '<div style="display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 14px; background: #241411">' +
+    return '<div style="padding: 8px 14px; border-radius: 14px; background: #241411">' +
+      '<div style="display: flex; align-items: center; gap: 10px">' +
       '<div style="' + dot + '" aria-hidden="true"></div>' +
-      '<div style="font-size: 22px; flex: none; color:' + color + '">' + name + '</div>' +
-      '<div style="font-size: 16px; color: #B8A29B; flex-grow: 1; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis" title="' + esc(path) + '">' + esc(path) + '</div>' +
-      '<div style="font-size: 20px; color:' + (ok ? '#7BE08A' : '#FF8A7A') + '">' + (ok ? '연결됨' : '연결 끊김') + '</div>' +
-      '</div>';
+      '<div style="font-size: 21px; flex-grow: 1; color:' + color + '">' + name + '</div>' +
+      '<div style="font-size: 19px; flex: none; color:' + (ok ? '#7BE08A' : '#FF8A7A') + '">' + (ok ? '연결됨' : '연결 끊김') + '</div>' +
+      '</div>' +
+      '<div style="margin-left: 24px; font-size: 15px; color: #B8A29B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis" title="' + esc(detail) + '">' + esc(detail) + '</div>' +
+      (extra || '') + '</div>';
+  }
+
+  function timeText(ms) {
+    var d = new Date(ms);
+    if (!ms || isNaN(d)) return '없음';
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
+  }
+
+  var renderedPortsKey = '';
+
+  function renderPorts() {
+    var ps = state.ports || {}, sb = ps.spikerbox || {}, st = ps.start || {}, open = ps.open || [];
+    var emg = state.emg || {};
+    // 포트·연결 정보가 바뀔 때만 다시 그린다 (역할 드롭다운을 열어 둔 채로 값이 흔들리지 않게)
+    var key = JSON.stringify([sb, st, open]);
+    if (key !== renderedPortsKey) {
+      renderedPortsKey = key;
+      var sbDetail = sb.connected || sb.path
+        ? [sb.path, sb.hwt, sb.channels ? sb.channels + '채널' : '', sb.fps ? sb.fps + ' fps' : ''].filter(Boolean).join(' · ')
+        : '신호 없음 · 열린 포트 ' + open.length + '개';
+      var bar = '<div style="margin: 6px 0 2px 24px; height: 8px; border-radius: 4px; background: #2E1B17; overflow: hidden"><div id="rms-bar" style="height: 100%; width: 0; background: ' + AMBER + '; box-shadow: 0 0 8px ' + AMBER + '"></div></div>';
+      var stDetail = st.connected || st.path
+        ? [st.path, '마지막 START ' + timeText(st.lastStartAt)].filter(Boolean).join(' · ')
+        : '신호 없음 · 마지막 START ' + timeText(st.lastStartAt);
+      $('ports').innerHTML =
+        port('SpikerBox', sbDetail, !!sb.connected, '#FF6A45', bar) +
+        port('START 버튼', stDetail, !!st.connected, '#FFB21E');
+      var ROLES = [['auto', '자동'], ['spikerbox', 'SpikerBox'], ['start', 'START']];
+      $('open-ports').innerHTML = open.map(function (o) {
+        var cur = o.fixed ? o.role : 'auto';
+        var opts = ROLES.map(function (r) { return '<option value="' + r[0] + '"' + (r[0] === cur ? ' selected' : '') + '>' + r[1] + '</option>'; }).join('');
+        var probing = o.role === 'probing' ? ' <span style="color:#8E7770">(확인 중)</span>' : '';
+        return '<div style="display: flex; align-items: center; gap: 10px; font-size: 15px; color: #B8A29B">' +
+          '<div style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis" title="' + esc(o.path) + '">' + esc(o.path) + probing + '</div>' +
+          '<select data-path="' + esc(o.path) + '" aria-label="' + esc(o.path) + ' 역할" style="height: 34px; font-family: inherit; font-size: 18px; color: #F3E6E1; background: #120807; border: 2px solid #4A2E28; border-radius: 8px">' + opts + '</select></div>';
+      }).join('');
+    }
+    var rb = $('rms-bar');
+    if (rb) rb.style.width = Math.max(0, Math.min(100, (emg.strength || 0) * (state.settings.calibration || 1) / MAX_SCORE * 100)) + '%';
+    var zeroing = !!emg.zeroing;
+    $('btn-zero').disabled = zeroing;
+    $('btn-zero').textContent = zeroing ? '재는 중…' : '영점 잡기';
+    $('rest-text').textContent = '휴식 ' + (emg.restRms != null ? emg.restRms : (state.settings.emg || {}).restRms || 0).toFixed(1);
   }
 
   function fillSettingsInputs() {
     $('cal').value = state.settings.calibration;
+    $('emg-channel').value = String((state.settings.emg || {}).channel || 1);
   }
 
   function renderAdmin() {
@@ -263,13 +308,7 @@
     $('btn-start').disabled = busy;
     $('btn-stop').disabled = !busy;
 
-    var ps = state.ports;
-    var openCount = ps.open.length;
-    var noSignal = function (k) {
-      return ps[k].path ? ps[k].path + ' · 2초 넘게 신호 없음' : '신호 없음 · 열린 포트 ' + openCount + '개';
-    };
-    $('ports').innerHTML =
-      port('PLAYER 1', ps.p1.connected ? ps.p1.path : noSignal('p1'), ps.p1.connected, '#FF6A45');
+    renderPorts();
 
     $('sim-toggle').checked = state.sim;
     $('btn-fullscreen').textContent = state.fullscreen ? '창 모드로 보기' : '전체화면으로 보기';
@@ -321,7 +360,7 @@
   }
 
   function saveSettings() {
-    var next = { calibration: parseFloat($('cal').value) };
+    var next = { calibration: parseFloat($('cal').value), emg: { channel: parseInt($('emg-channel').value, 10) } };
     api.saveSettings(next).then(function (s) {
       state.settings = s;
       fillSettingsInputs();
@@ -337,6 +376,11 @@
   $('btn-start').addEventListener('click', function () { api.start(); });
   $('btn-stop').addEventListener('click', function () { api.stop(); });
   $('btn-save-names').addEventListener('click', saveNames);
+  $('btn-zero').addEventListener('click', function () { if (api.zeroEmg) api.zeroEmg(); });
+  $('open-ports').addEventListener('change', function (e) {
+    var el = e.target;
+    if (el.dataset && el.dataset.path && api.setPortRole) api.setPortRole(el.dataset.path, el.value);
+  });
   $('btn-reconnect').addEventListener('click', function () { api.reconnect(); });
   $('btn-save-settings').addEventListener('click', saveSettings);
   $('sim-toggle').addEventListener('change', function (e) { api.setSim(e.target.checked); });
