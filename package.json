@@ -1,0 +1,51 @@
+{
+  "name": "raibit-scoreboard",
+  "productName": "raibitScoreboard",
+  "version": "1.2.0",
+  "description": "raibitScoreboard - 근전도 2인 대결 스코어보드",
+  "main": "src/main/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "sim": "electron . --sim",
+    "test": "node test/game.test.js",
+    "build:win": "electron-builder --win portable nsis --x64",
+    "build:mac": "electron-builder --mac dmg --arm64 --x64",
+    "build": "electron-builder --win --mac"
+  },
+  "build": {
+    "appId": "school.festival.raibitscoreboard",
+    "productName": "raibitScoreboard",
+    "npmRebuild": false,
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/@serialport/bindings-cpp/**"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.entertainment"
+    }
+  },
+  "dependencies": {
+    "serialport": "^12.0.0"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  }
+}
