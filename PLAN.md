@@ -354,7 +354,7 @@ function classifyProbe({ messages, frameCount })  // HWT 메시지가 있거나 
 
 ### Phase 5 — 마무리 · 하드웨어 테스트
 
-- [ ] **10. 마무리**
+- [x] **10. 마무리**
   - `package.json`: version `2.0.0`, description `raibitScoreboard - 근전도 기록 측정`.
   - README: 하드웨어 구성(SpikerBox + START 아두이노), 영점 잡기·보정 방법, 시뮬레이션 키(S/A).
   - CLAUDE.md: "(v2)" 표시와 "Current status" 절 정리, v1 설명 삭제.

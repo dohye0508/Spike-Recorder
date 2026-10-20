@@ -1,8 +1,8 @@
 {
   "name": "raibit-scoreboard",
   "productName": "raibitScoreboard",
-  "version": "2.0.0-beta.3",
-  "description": "raibitScoreboard - 근전도 2인 대결 스코어보드",
+  "version": "2.0.0",
+  "description": "raibitScoreboard - 근전도 기록 측정",
   "main": "src/main/main.js",
   "private": true,
   "scripts": {
