@@ -36,30 +36,30 @@
         </div>
         <div id="rows" style="display: flex; flex-direction: column; gap: 18px"></div>
         <div style="margin-top: auto; display: flex; align-items: center; gap: 16px">
-          <div id="names-msg" style="flex-grow: 1; font-size: 20px; color: #B8A29B">점수는 판정 직후 자동 저장됩니다. 이름만 여기서 고치세요.</div>
+          <div id="names-msg" style="flex-grow: 1; font-size: 20px; color: #B8A29B">점수는 측정 직후 자동 저장됩니다. 이름만 여기서 고치세요.</div>
           <button type="button" id="btn-save-names" style="height: 56px; padding: 0 34px; border-radius: 14px; border: 0; background: #FFB21E; color: #1A0D0B; font-family: inherit; font-size: 26px; cursor: pointer; box-shadow: 0 0 22px rgba(255,178,30,0.45)">이름 저장</button>
         </div>
       </div>
 
-      <div style="width: 480px; flex: none; display: flex; flex-direction: column; gap: 14px; min-height: 0">
+      <div style="width: 480px; flex: none; display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto">
 
-        <div style="box-sizing: border-box; padding: 18px 26px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 10px">
-          <h2 style="margin: 0; font-size: 32px; font-weight: 400">경기 제어</h2>
+        <div style="box-sizing: border-box; padding: 14px 22px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 8px">
+          <h2 style="margin: 0; font-size: 28px; font-weight: 400">경기 제어</h2>
           <div style="font-size: 22px; color: #C9B3AC; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">현재 상태: <span id="state-text"></span></div>
-          <button type="button" id="btn-start" style="height: 60px; flex: none; border-radius: 16px; border: 0; background: #FF4A1C; color: #1A0D0B; font-family: inherit; font-size: 30px; cursor: pointer; box-shadow: 0 0 26px rgba(255,74,28,0.5)">새 경기 시작</button>
-          <button type="button" id="btn-stop" style="height: 46px; flex: none; border-radius: 16px; border: 2px solid #FF8A7A; background: transparent; color: #FF8A7A; font-family: inherit; font-size: 24px; cursor: pointer">경기 중지 · 기록하지 않음</button>
-          <div style="font-size: 17px; color: #B8A29B">새 경기 시작은 기계의 START 버튼과 같습니다. 0점이 나오는 등 이상한 경기는 중지하면 명예의 전당에 남지 않고 대기 화면으로 돌아갑니다.</div>
+          <button type="button" id="btn-start" title="START 버튼과 같습니다" style="height: 56px; flex: none; border-radius: 16px; border: 0; background: #FF4A1C; color: #1A0D0B; font-family: inherit; font-size: 30px; cursor: pointer; box-shadow: 0 0 26px rgba(255,74,28,0.5)">측정 시작</button>
+          <button type="button" id="btn-stop" title="중지하면 기록이 남지 않습니다" style="height: 42px; flex: none; border-radius: 16px; border: 2px solid #FF8A7A; background: transparent; color: #FF8A7A; font-family: inherit; font-size: 24px; cursor: pointer">측정 중지 · 기록하지 않음</button>
         </div>
 
-        <div style="box-sizing: border-box; padding: 18px 26px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 10px">
+        <div style="box-sizing: border-box; padding: 14px 22px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 8px">
           <div style="display: flex; align-items: center; gap: 12px">
-            <h2 style="margin: 0; font-size: 32px; font-weight: 400; flex-grow: 1">아두이노 연결</h2>
+            <h2 style="margin: 0; font-size: 28px; font-weight: 400; flex-grow: 1">장치 연결</h2>
             <button type="button" id="btn-reconnect" style="height: 44px; padding: 0 18px; border-radius: 12px; border: 2px solid #5A3A33; background: transparent; color: #F3E6E1; font-family: inherit; font-size: 20px; cursor: pointer">포트 다시 연결</button>
           </div>
           <div id="ports" style="display: flex; flex-direction: column; gap: 8px"></div>
+          <div id="open-ports" style="display: flex; flex-direction: column; gap: 6px"></div>
         </div>
 
-        <div style="box-sizing: border-box; padding: 16px 26px 18px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 10px">
+        <div style="box-sizing: border-box; padding: 14px 22px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 10px">
           <div style="display: flex; align-items: center; gap: 14px">
             <h2 style="margin: 0; font-size: 24px; font-weight: 400; flex-grow: 1">보정 설정</h2>
             <label style="display: flex; align-items: center; gap: 8px; font-size: 18px; color: #C9B3AC; cursor: pointer">
@@ -68,8 +68,15 @@
             </label>
             <button type="button" id="btn-quit" style="height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid #5A3A33; background: transparent; color: #B8A29B; font-family: inherit; font-size: 16px; cursor: pointer">앱 종료</button>
           </div>
-          <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center" title="점수 = 세기 × 보정계수">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center" title="점수 = 세기 × 보정계수">
             <label class="field"><span>보정계수</span><input type="number" id="cal" step="0.01" min="0.001"></label>
+            <label class="field"><span>채널</span><select id="emg-channel"><option value="1">1</option><option value="2">2</option></select></label>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center">
+            <div style="display: flex; align-items: center; gap: 10px; min-width: 0">
+              <button type="button" id="btn-zero" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 2px solid #5A3A33; background: transparent; color: #F3E6E1; font-family: inherit; font-size: 20px; cursor: pointer; white-space: nowrap">영점 잡기</button>
+              <div id="rest-text" style="font-size: 17px; color: #B8A29B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"></div>
+            </div>
             <button type="button" id="btn-save-settings" style="height: 40px; min-width: 76px; padding: 0 12px; border-radius: 10px; border: 2px solid #FFB21E; background: transparent; color: #FFB21E; font-family: inherit; font-size: 20px; cursor: pointer">저장</button>
           </div>
         </div>
