@@ -122,6 +122,15 @@ class Store {
   saveHistory(scores) {
     writeJsonAtomic(this.historyFile, { scores });
   }
+
+  /** 기록 전체 삭제: 지우기 전 파일은 *.bak-<시각> 으로 남겨 두고 빈 목록으로 저장 */
+  resetRecords(stamp = Date.now()) {
+    for (const file of [this.hallFile, this.historyFile]) {
+      if (fs.existsSync(file)) fs.copyFileSync(file, file + '.bak-' + stamp);
+    }
+    this.saveHall([]);
+    this.saveHistory([]);
+  }
 }
 
 module.exports = { Store, DEFAULT_SETTINGS, normalizeSettings, writeJsonAtomic, readJson };

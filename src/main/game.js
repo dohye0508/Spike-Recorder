@@ -52,6 +52,14 @@ class Game {
     return true;
   }
 
+  /** 결과 화면을 비우고 대기로 (기록 전체 삭제 뒤). MEASURING 중에는 무시. */
+  clear() {
+    if (this.phase === PHASE.MEASURING) return false;
+    this.phase = PHASE.IDLE;
+    this.p1 = emptyPlayer();
+    return true;
+  }
+
   /** 0.1초 구간의 세기 하나. which 는 'p1' 만 받는다(1인 모드). */
   sample(which, raw, now) {
     if (this.phase !== PHASE.MEASURING || which !== 'p1') return;

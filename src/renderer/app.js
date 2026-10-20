@@ -257,12 +257,13 @@
   }
 
   var renderedPortsKey = '';
+  var renderedOpenKey = '';
 
   function renderPorts() {
     var ps = state.ports || {}, sb = ps.spikerbox || {}, st = ps.start || {}, open = ps.open || [];
     var emg = state.emg || {};
-    // 포트·연결 정보가 바뀔 때만 다시 그린다 (역할 드롭다운을 열어 둔 채로 값이 흔들리지 않게)
-    var key = JSON.stringify([sb, st, open]);
+    // 포트·연결 정보가 바뀔 때만 다시 그린다
+    var key = JSON.stringify([sb, st, open.length]);
     if (key !== renderedPortsKey) {
       renderedPortsKey = key;
       var sbDetail = sb.connected || sb.path
@@ -275,6 +276,12 @@
       $('ports').innerHTML =
         port('SpikerBox', sbDetail, !!sb.connected, '#FF6A45', bar) +
         port('START 버튼', stDetail, !!st.connected, '#FFB21E');
+    }
+    // 역할 드롭다운은 포트 목록이 바뀔 때만, 그리고 고르는 중이 아닐 때만 다시 그린다 (열린 목록이 닫히지 않게)
+    var openKey = JSON.stringify(open);
+    var picking = document.activeElement && document.activeElement.tagName === 'SELECT' && $('open-ports').contains(document.activeElement);
+    if (openKey !== renderedOpenKey && !picking) {
+      renderedOpenKey = openKey;
       var ROLES = [['auto', '자동'], ['spikerbox', 'SpikerBox'], ['start', 'START']];
       $('open-ports').innerHTML = open.map(function (o) {
         var cur = o.fixed ? o.role : 'auto';
@@ -307,6 +314,7 @@
     var busy = g.phase === 'measuring';
     $('btn-start').disabled = busy;
     $('btn-stop').disabled = !busy;
+    $('btn-reset-records').disabled = busy;
 
     renderPorts();
 
@@ -376,10 +384,20 @@
   $('btn-start').addEventListener('click', function () { api.start(); });
   $('btn-stop').addEventListener('click', function () { api.stop(); });
   $('btn-save-names').addEventListener('click', saveNames);
+  $('btn-reset-records').addEventListener('click', function () {
+    var n = state && state.hall ? state.hall.length : 0;
+    if (!window.confirm('명예의 전당 ' + n + '개와 전체 순위 기록을 모두 지울까요?\n(지우기 전 파일은 데이터 폴더에 백업됩니다)')) return;
+    api.resetRecords().then(function (ok) {
+      var msg = $('names-msg');
+      msg.textContent = ok ? '기록을 모두 지웠습니다.' : '기록 삭제에 실패했습니다.';
+      msg.style.color = ok ? '#7BE08A' : '#FF8A7A';
+      renderedHallKey = '';
+    });
+  });
   $('btn-zero').addEventListener('click', function () { if (api.zeroEmg) api.zeroEmg(); });
   $('open-ports').addEventListener('change', function (e) {
     var el = e.target;
-    if (el.dataset && el.dataset.path && api.setPortRole) api.setPortRole(el.dataset.path, el.value);
+    if (el.dataset && el.dataset.path && api.setPortRole) { api.setPortRole(el.dataset.path, el.value); el.blur(); }
   });
   $('btn-reconnect').addEventListener('click', function () { api.reconnect(); });
   $('btn-save-settings').addEventListener('click', saveSettings);

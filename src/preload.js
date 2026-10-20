@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   start: () => ipcRenderer.invoke('game:start'),
   stop: () => ipcRenderer.invoke('game:stop'),
   saveNames: (names) => ipcRenderer.invoke('hall:saveNames', names),
+  resetRecords: () => ipcRenderer.invoke('hall:reset'),
   reconnect: () => ipcRenderer.invoke('serial:reconnect'),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
   setSim: (on) => ipcRenderer.invoke('sim:set', on),

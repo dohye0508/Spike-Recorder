@@ -160,6 +160,21 @@ function setupIpc() {
     push();
     return !lastSaveError;
   });
+  ipcMain.handle('hall:reset', () => {
+    if (game.phase === 'measuring') return false;
+    try {
+      store.resetRecords();
+      records = [];
+      history = [];
+      lastResult = null;
+      lastSaveError = null;
+      game.clear();
+    } catch (err) {
+      lastSaveError = '기록 삭제 실패: ' + err.message;
+    }
+    push();
+    return !lastSaveError;
+  });
   ipcMain.handle('serial:reconnect', () => { serial.reconnect(); push(); });
   ipcMain.handle('settings:save', (_e, next) => {
     settings = normalizeSettings({ ...settings, ...next, emg: { ...settings.emg, ...(next && next.emg) } });

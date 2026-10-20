@@ -374,4 +374,27 @@ test('가짜 SpikerBox: A 를 누른 구간의 RMS 가 뗀 구간보다 10배 �
   assert.ok(held > rest * 10, held + ' vs ' + rest);
 });
 
+test('기록 전체 삭제: 빈 목록으로 저장하고 지우기 전 파일은 백업', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'punch-'));
+  const store = new Store(dir);
+  store.saveHall([{ id: 'a', name: '홍길동', score: 7812, at: new Date().toISOString() }]);
+  store.saveHistory([7812, 300]);
+  store.resetRecords(123);
+  const again = new Store(dir);
+  assert.deepStrictEqual(again.loadHall(), []);
+  assert.deepStrictEqual(again.loadHistory(), []);
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'hall-of-fame.json.bak-123'), 'utf8')).records[0].score, 7812);
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'score-history.json.bak-123'), 'utf8')).scores, [7812, 300]);
+  // 파일이 없을 때도 실패하지 않는다
+  const { g } = makeGame({ calibration: 1 });
+  g.start(0);
+  assert.strictEqual(g.clear(), false); // 측정 중에는 비우지 않는다
+  g.tick(9000);
+  assert.strictEqual(g.clear(), true);
+  assert.strictEqual(g.snapshot().phase, 'idle');
+  const empty = new Store(fs.mkdtempSync(path.join(os.tmpdir(), 'punch-')));
+  empty.resetRecords(1);
+  assert.deepStrictEqual(empty.loadHall(), []);
+});
+
 console.log(`\n${passed}개 통과`);
