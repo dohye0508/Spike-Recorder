@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>관리자 화면</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#140A09}
+a{color:#FFB21E}a:hover{color:#FFD27A}
+input:focus{outline:2px solid #FFB21E;outline-offset:2px}
+button:focus-visible{outline:2px solid #FFB21E;outline-offset:3px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 44px 56px 48px; display: flex; flex-direction: column; gap: 32px; background-color: #140A09; background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px); background-size: 6px 6px; font-family: 'Do Hyeon', sans-serif; color: #F3E6E1">
+
+  <div style="display: flex; align-items: center; gap: 20px">
+    <h1 style="margin: 0; font-size: 52px; font-weight: 400; color: #FFB21E; text-shadow: 0 0 14px rgba(255,178,30,0.5)">관리자 모드</h1>
+    <div style="flex-grow: 1; font-size: 22px; color: #B8A29B">관중 화면은 이 창이 닫히면 다시 보입니다</div>
+    <button type="button" style="height: 52px; padding: 0 26px; border-radius: 14px; border: 2px solid #5A3A33; background: transparent; color: #F3E6E1; font-family: inherit; font-size: 24px; cursor: pointer">스코어보드로 돌아가기</button>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; display: flex; gap: 32px">
+
+    <div style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 28px 32px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; align-items: baseline; gap: 16px">
+        <h2 style="margin: 0; font-size: 36px; font-weight: 400">명예의 전당 이름 수정</h2>
+        <div style="font-size: 22px; color: #FFB21E">이름 입력이 필요한 기록 {{pending}}개</div>
+      </div>
+      <div style="display: grid; grid-template-columns: 70px minmax(0, 1fr) 150px 140px; gap: 16px; padding: 0 18px; font-size: 20px; color: #B8A29B">
+        <div>순위</div><div>이름</div><div>점수</div><div>기록한 선수</div>
+      </div>
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="5">
+        <div style="{{r.row}}">
+          <div style="font-size: 30px; {{r.rankStyle}}">{{r.rank}}</div>
+          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+            <label for="{{r.id}}" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">{{r.rank}}위 이름</label>
+            <input id="{{r.id}}" type="text" value="{{r.name}}" style="{{r.input}}">
+            <sc-if value="{{r.temp}}" hint-placeholder-val="{{false}}">
+              <div style="font-size: 18px; color: #FFB21E">임시 이름 · 실제 이름을 입력하세요</div>
+            </sc-if>
+          </div>
+          <div style="font-size: 34px; color: #FFB21E; font-variant-numeric: tabular-nums">{{r.score}}</div>
+          <div style="font-size: 22px; {{r.whoStyle}}">{{r.who}}</div>
+        </div>
+      </sc-for>
+      <div style="margin-top: auto; display: flex; align-items: center; gap: 16px">
+        <div style="flex-grow: 1; font-size: 20px; color: #B8A29B">점수는 판정 직후 자동 저장됩니다. 이름만 여기서 고치세요.</div>
+        <button type="button" style="height: 56px; padding: 0 34px; border-radius: 14px; border: 0; background: #FFB21E; color: #1A0D0B; font-family: inherit; font-size: 26px; cursor: pointer; box-shadow: 0 0 22px rgba(255,178,30,0.45)">이름 저장</button>
+      </div>
+    </div>
+
+    <div style="width: 440px; flex: none; display: flex; flex-direction: column; gap: 24px">
+
+      <div style="box-sizing: border-box; padding: 28px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 18px">
+        <h2 style="margin: 0; font-size: 32px; font-weight: 400">경기 제어</h2>
+        <div style="font-size: 22px; color: #C9B3AC">현재 상태: <span style="{{stateStyle}}">{{stateText}}</span></div>
+        <button type="button" style="height: 72px; border-radius: 16px; border: 0; background: #FF4A1C; color: #1A0D0B; font-family: inherit; font-size: 30px; cursor: pointer; box-shadow: 0 0 26px rgba(255,74,28,0.5)">새 경기 시작</button>
+        <button type="button" style="height: 56px; border-radius: 16px; border: 2px solid #FF8A7A; background: transparent; color: #FF8A7A; font-family: inherit; font-size: 24px; cursor: pointer">경기 중지 · 기록하지 않음</button>
+        <div style="font-size: 19px; color: #B8A29B">새 경기 시작은 기계의 START 버튼과 같습니다. 0점이 나오는 등 이상한 경기는 중지하면 명예의 전당에 남지 않고 대기 화면으로 돌아갑니다.</div>
+      </div>
+
+      <div style="box-sizing: border-box; padding: 28px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 16px">
+        <h2 style="margin: 0; font-size: 32px; font-weight: 400">아두이노 연결</h2>
+        <sc-for list="{{ports}}" as="p" hint-placeholder-count="2">
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; background: #241411">
+            <div style="{{p.dot}}" aria-hidden="true"></div>
+            <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0">
+              <div style="font-size: 24px; {{p.nameStyle}}">{{p.name}}</div>
+              <div style="font-size: 18px; color: #B8A29B">{{p.port}}</div>
+            </div>
+            <div style="font-size: 20px; {{p.statusStyle}}">{{p.status}}</div>
+          </div>
+        </sc-for>
+        <button type="button" style="height: 52px; border-radius: 14px; border: 2px solid #5A3A33; background: transparent; color: #F3E6E1; font-family: inherit; font-size: 22px; cursor: pointer">포트 다시 연결</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"p2Connected":{"editor":"boolean","default":false,"section":"상태"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var data = [
+      { name: '[이름]', score: 9870, who: 'PLAYER 2', temp: false },
+      { name: 'ㅇㅇㅇ', score: 8640, who: 'PLAYER 1', temp: true },
+      { name: '[이름]', score: 7215, who: 'PLAYER 1', temp: false },
+      { name: 'ㅇㅇㅇ', score: 6050, who: 'PLAYER 2', temp: true },
+      { name: '[이름]', score: 5000, who: 'PLAYER 2', temp: false }
+    ];
+    var MEDAL = ['#FFC83D', '#D3DAE2', '#D88A4E'];
+    var pending = 0;
+    var rows = data.map(function (d, i) {
+      if (d.temp) pending++;
+      return {
+        id: 'name-' + (i + 1),
+        rank: i + 1,
+        name: d.name,
+        score: d.score,
+        who: d.who,
+        temp: d.temp,
+        whoStyle: 'color:' + (d.who === 'PLAYER 1' ? '#FF6A45' : '#5CC4FF'),
+        rankStyle: 'color:' + (MEDAL[i] || '#C9B3AC'),
+        row: 'display:grid;grid-template-columns:70px minmax(0,1fr) 150px 140px;gap:16px;align-items:center;padding:14px 18px;border-radius:14px;' + (d.temp ? 'background:#2A1610;border:1px solid #6B4318' : 'border:1px solid #2E1B17'),
+        input: 'box-sizing:border-box;width:100%;height:52px;padding:0 16px;border-radius:10px;font-family:inherit;font-size:26px;color:#F3E6E1;background:#120807;border:2px solid ' + (d.temp ? '#FFB21E' : '#4A2E28')
+      };
+    });
+    var p2ok = this.props.p2Connected ?? false;
+    function port(name, path, ok, color) {
+      return {
+        name: name, port: path, status: ok ? '연결됨' : '연결 끊김',
+        nameStyle: 'color:' + color,
+        statusStyle: 'color:' + (ok ? '#7BE08A' : '#FF8A7A'),
+        dot: 'width:14px;height:14px;border-radius:7px;flex:none;background:' + (ok ? '#4CD964' : '#FF5A47') + ';box-shadow:0 0 10px ' + (ok ? '#4CD964' : '#FF5A47')
+      };
+    }
+    return {
+      rows: rows,
+      pending: pending,
+      stateText: 'DRAW · 재경기 대기',
+      stateStyle: 'color:#FFB21E',
+      ports: [
+        port('PLAYER 1 아두이노', '[포트 이름]', true, '#FF6A45'),
+        port('PLAYER 2 아두이노', '[포트 이름]', p2ok, '#5CC4FF')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

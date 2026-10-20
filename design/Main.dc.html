@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>펀치 대결 스코어보드</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#140A09}
+a{color:#FFB21E}a:hover{color:#FFD27A}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 44px 56px 48px; display: flex; flex-direction: column; gap: 40px; background-color: #140A09; background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px); background-size: 6px 6px; font-family: 'Do Hyeon', sans-serif; color: #F3E6E1; overflow: hidden">
+
+  <div style="align-self: center; width: 860px; box-sizing: border-box; padding: 22px 40px 26px; border-radius: 28px; display: flex; flex-direction: column; align-items: center; gap: 4px; {{bannerStyle}}">
+    <div style="font-size: 26px; letter-spacing: 0.3em; color: #C9B3AC">{{bannerLabel}}</div>
+    <sc-if value="{{judging}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; align-items: center; gap: 36px">
+        <div style="font-size: 92px; line-height: 1; {{winnerTextStyle}}">판정 중</div>
+        <div style="{{cd.wrap}}">
+          <sc-for list="{{cd.digits}}" as="d" hint-placeholder-count="1">
+            <div style="{{d.box}}">
+              <sc-for list="{{d.segs}}" as="s" hint-placeholder-count="7"><div style="{{s.style}}"></div></sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{notJudging}}" hint-placeholder-val="{{true}}">
+      <div style="font-size: 92px; line-height: 1; {{winnerTextStyle}}">{{winnerText}}</div>
+    </sc-if>
+    <sc-if value="{{isDraw}}" hint-placeholder-val="{{false}}">
+      <div style="margin-top: 10px; font-size: 24px; color: #C9B3AC">관리자가 새 경기를 시작하면 다시 측정합니다</div>
+    </sc-if>
+  </div>
+
+  <div style="flex-grow: 1; display: flex; gap: 40px; align-items: stretch; min-height: 0">
+
+    <div style="width: 420px; box-sizing: border-box; padding: 32px 28px; border-radius: 24px; display: flex; flex-direction: row; gap: 32px; align-items: center; {{p1.panel}}">
+      <div style="display: flex; flex-direction: column; gap: 7px">
+        <sc-for list="{{p1.meter}}" as="m" hint-placeholder-count="15">
+          <div style="{{m.style}}">{{m.n}}</div>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 28px; align-items: flex-start">
+        <div style="font-size: 40px; {{p1.labelStyle}}">PLAYER 1</div>
+        <div style="{{p1.wrap}}">
+          <sc-for list="{{p1.digits}}" as="d" hint-placeholder-count="4">
+            <div style="{{d.box}}">
+              <sc-for list="{{d.segs}}" as="s" hint-placeholder-count="7"><div style="{{s.style}}"></div></sc-for>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{measuring}}" hint-placeholder-val="{{false}}">
+          <div style="display: flex; flex-direction: column; gap: 8px; width: 270px">
+            <div style="font-size: 22px; color: #E9DAD5">측정 {{p1.samples}} / 50</div>
+            <div style="height: 10px; border-radius: 5px; background: #2E1B17; overflow: hidden"><div style="{{p1.bar}}"></div></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{notMeasuring}}" hint-placeholder-val="{{true}}">
+          <div style="font-size: 22px; color: #B8A29B">레벨 {{p1.level}} / 15</div>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 28px 32px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 14px">
+      <h2 style="margin: 0 0 6px; font-size: 44px; font-weight: 400; text-align: center; color: #FFB21E; text-shadow: 0 0 14px rgba(255,178,30,0.55)">명예의 전당</h2>
+      <sc-for list="{{hall}}" as="r" hint-placeholder-count="5">
+        <div style="{{r.row}}">
+          <div style="width: 48px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center">
+            <sc-if value="{{r.isCrown}}" hint-placeholder-val="{{true}}">
+              <svg role="img" aria-label="{{r.crownLabel}}" width="44" height="36" viewBox="0 0 44 36" style="{{r.crownGlow}}">
+                <path d="M5 27 L3 9 L13 17 L22 4 L31 17 L41 9 L39 27 Z" fill="{{r.crownColor}}" stroke="{{r.crownEdge}}" stroke-width="1.5" stroke-linejoin="round"></path>
+                <rect x="5" y="29" width="34" height="5" rx="1.5" fill="{{r.crownColor}}" stroke="{{r.crownEdge}}" stroke-width="1.5"></rect>
+                <circle cx="3" cy="8" r="2.6" fill="{{r.crownColor}}"></circle>
+                <circle cx="22" cy="3.2" r="2.8" fill="{{r.crownColor}}"></circle>
+                <circle cx="41" cy="8" r="2.6" fill="{{r.crownColor}}"></circle>
+                <circle cx="22" cy="20" r="3" fill="{{r.crownEdge}}"></circle>
+              </svg>
+            </sc-if>
+            <sc-if value="{{r.isNum}}" hint-placeholder-val="{{false}}">
+              <div style="font-size: 36px; color: #C9B3AC">{{r.rank}}</div>
+            </sc-if>
+          </div>
+          <div style="flex-grow: 1; min-width: 0; font-size: 30px; color: #E9DAD5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</div>
+          <div style="{{r.wrap}}">
+            <sc-for list="{{r.digits}}" as="d" hint-placeholder-count="4">
+              <div style="{{d.box}}">
+                <sc-for list="{{d.segs}}" as="s" hint-placeholder-count="7"><div style="{{s.style}}"></div></sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="width: 420px; box-sizing: border-box; padding: 32px 28px; border-radius: 24px; display: flex; flex-direction: row-reverse; gap: 32px; align-items: center; {{p2.panel}}">
+      <div style="display: flex; flex-direction: column; gap: 7px">
+        <sc-for list="{{p2.meter}}" as="m" hint-placeholder-count="15">
+          <div style="{{m.style}}">{{m.n}}</div>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 28px; align-items: flex-end">
+        <div style="font-size: 40px; {{p2.labelStyle}}">PLAYER 2</div>
+        <div style="{{p2.wrap}}">
+          <sc-for list="{{p2.digits}}" as="d" hint-placeholder-count="4">
+            <div style="{{d.box}}">
+              <sc-for list="{{d.segs}}" as="s" hint-placeholder-count="7"><div style="{{s.style}}"></div></sc-for>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{measuring}}" hint-placeholder-val="{{false}}">
+          <div style="display: flex; flex-direction: column; gap: 8px; width: 270px; align-items: flex-end">
+            <div style="font-size: 22px; color: #E9DAD5">측정 {{p2.samples}} / 50</div>
+            <div style="width: 100%; height: 10px; border-radius: 5px; background: #2E1B17; overflow: hidden; display: flex; justify-content: flex-end"><div style="{{p2.bar}}"></div></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{notMeasuring}}" hint-placeholder-val="{{true}}">
+          <div style="font-size: 22px; color: #B8A29B">레벨 {{p2.level}} / 15</div>
+        </sc-if>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"winner":{"editor":"enum","options":["measuring","judging","p1","p2","draw","none"],"default":"p1","section":"경기"},"p1Samples":{"editor":"int","min":0,"max":50,"default":34,"section":"경기"},"p2Samples":{"editor":"int","min":0,"max":50,"default":27,"section":"경기"},"countdown":{"editor":"int","min":0,"max":5,"default":3,"section":"경기"},"p1Score":{"editor":"int","min":0,"max":9999,"default":4270,"section":"경기"},"p2Score":{"editor":"int","min":0,"max":9999,"default":3815,"section":"경기"},"maxScore":{"editor":"int","min":100,"max":9999,"default":9999,"section":"경기"},"p1Color":{"editor":"color","options":["#FF4A1C","#FF2D55","#FF7A1F"],"default":"#FF4A1C","section":"색"},"p2Color":{"editor":"color","options":["#36B7FF","#3D8BFF","#2EE6C8"],"default":"#36B7FF","section":"색"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var MAP = {'0':'abcdef','1':'bc','2':'abdeg','3':'abcdg','4':'bcfg','5':'acdfg','6':'acdefg','7':'abc','8':'abcdefg','9':'abcdfg',' ':''};
+    function digits(str, size, color) {
+      var h = size, w = Math.round(size * 0.56), t = Math.max(3, Math.round(size * 0.12)), g = Math.max(1, Math.round(t * 0.18));
+      var vl = Math.round(h / 2 - t / 2 - 2 * g);
+      var ht = t / 2;
+      var hp = 'polygon(' + ht + 'px 0,calc(100% - ' + ht + 'px) 0,100% 50%,calc(100% - ' + ht + 'px) 100%,' + ht + 'px 100%,0 50%)';
+      var vp = 'polygon(50% 0,100% ' + ht + 'px,100% calc(100% - ' + ht + 'px),50% 100%,0 calc(100% - ' + ht + 'px),0 ' + ht + 'px)';
+      var geo = {
+        a: [ht + g, 0, w - t - 2 * g, t, hp],
+        b: [w - t, ht + g, t, vl, vp],
+        c: [w - t, h / 2 + g, t, vl, vp],
+        d: [ht + g, h - t, w - t - 2 * g, t, hp],
+        e: [0, h / 2 + g, t, vl, vp],
+        f: [0, ht + g, t, vl, vp],
+        g: [ht + g, h / 2 - ht, w - t - 2 * g, t, hp]
+      };
+      return str.split('').map(function (ch) {
+        var on = MAP[ch] || '';
+        return {
+          box: 'position:relative;flex:none;width:' + w + 'px;height:' + h + 'px',
+          segs: 'abcdefg'.split('').map(function (k) {
+            var q = geo[k];
+            return { style: 'position:absolute;left:' + q[0] + 'px;top:' + q[1] + 'px;width:' + q[2] + 'px;height:' + q[3] + 'px;clip-path:' + q[4] + ';background:' + (on.indexOf(k) >= 0 ? color : color + '1C') };
+          })
+        };
+      });
+    }
+    function pad(n) { n = Math.max(0, Math.min(9999, Math.round(n || 0))); return String(n).padStart(4, ' '); }
+    function wrap(size, color) {
+      return 'display:flex;gap:' + Math.round(size * 0.14) + 'px;transform:skewX(-6deg);filter:drop-shadow(0 0 3px ' + color + ') drop-shadow(0 0 14px ' + color + '80)';
+    }
+    var RAINBOW = ['#2F7BFF','#3D6BFF','#5A5CFF','#7A4DFF','#9B45F0','#BE3FD9','#DA3BB8','#EE3A8F','#F93D63','#FF4A3D','#FF5E2A','#FF7A1F','#FF9A1A','#FFBA1A','#FFD61F'];
+    var maxS = this.props.maxScore ?? 9999;
+    var winner = this.props.winner ?? 'p1';
+    function player(score, color, isWin, isLose, samples) {
+      samples = Math.max(0, Math.min(50, samples || 0));
+      var level = Math.max(0, Math.min(15, Math.round((score / maxS) * 15)));
+      var meter = [];
+      for (var i = 15; i >= 1; i--) {
+        var c = RAINBOW[i - 1], lit = i <= level;
+        meter.push({ n: i, style: 'width:54px;height:24px;border-radius:12px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:15px;' + (lit ? 'background:' + c + ';color:#1A0D0B;box-shadow:0 0 8px ' + c + ',0 0 20px ' + c + '66' : 'background:' + c + '12;color:' + c + '66;border:1px solid ' + c + '30') });
+      }
+      return {
+        level: level,
+        samples: samples,
+        bar: 'height:100%;width:' + (samples / 50 * 100) + '%;background:' + color + ';box-shadow:0 0 10px ' + color,
+        meter: meter,
+        digits: digits(pad(score), 104, color),
+        wrap: wrap(104, color),
+        labelStyle: 'color:' + color + ';text-shadow:0 0 12px ' + color + '99',
+        panel: 'background:#1C0F0D;' + (isWin ? 'border:2px solid ' + color + ';box-shadow:0 0 0 6px ' + color + '1F, 0 0 48px ' + color + '40' : 'border:2px solid #3A2420') + (isLose ? ';opacity:0.62' : '')
+      };
+    }
+    var c1 = this.props.p1Color ?? '#FF4A1C', c2 = this.props.p2Color ?? '#36B7FF';
+    var s1 = this.props.p1Score ?? 4270, s2 = this.props.p2Score ?? 3815;
+    var wc = winner === 'p1' ? c1 : winner === 'p2' ? c2 : '#FFB21E';
+    var AMBER = '#FFB21E';
+    var hallData = [['[이름]', 9870], ['[이름]', 8640], ['[이름]', 7215], ['[이름]', 6050], ['[이름]', 5000]];
+    var CROWNS = [
+      { c: '#FFC83D', e: '#B07A0E', label: '1위' },
+      { c: '#D3DAE2', e: '#7C8792', label: '2위' },
+      { c: '#D88A4E', e: '#8A4A1E', label: '3위' }
+    ];
+    var hall = hallData.map(function (r, i) {
+      var col = i === 0 ? AMBER : '#E8963A';
+      var cr = CROWNS[i];
+      return {
+        rank: i + 1,
+        name: r[0],
+        isCrown: !!cr,
+        isNum: !cr,
+        crownColor: cr ? cr.c : '',
+        crownEdge: cr ? cr.e : '',
+        crownLabel: cr ? cr.label : '',
+        crownGlow: cr ? 'filter:drop-shadow(0 0 6px ' + cr.c + '99)' : '',
+        row: 'display:flex;align-items:center;gap:18px;padding:14px 18px;border-radius:14px;' + (i === 0 ? 'background:#2A1610;border:1px solid #6B4318' : 'border:1px solid transparent;border-top-color:#2E1B17'),
+        digits: digits(pad(r[1]), 40, col),
+        wrap: wrap(40, col)
+      };
+    });
+    var judging = winner === 'judging';
+    var measuring = winner === 'measuring';
+    var cdn = Math.max(0, Math.min(9, this.props.countdown ?? 3));
+    var LABELS = { measuring: '두 선수 측정 중', judging: '두 기록 확정 후 5초 뒤 승자 발표', draw: '동점', none: '다음 경기 대기' };
+    var TEXTS = { p1: 'PLAYER 1', p2: 'PLAYER 2', draw: 'DRAW', measuring: '측정 중', none: 'START 버튼을 누르세요' };
+    return {
+      judging: judging,
+      notJudging: !judging,
+      measuring: measuring,
+      notMeasuring: !measuring,
+      isDraw: winner === 'draw',
+      bannerLabel: LABELS[winner] || 'WINNER',
+      cd: { digits: digits(String(cdn), 84, AMBER), wrap: wrap(84, AMBER) },
+      p1: player(s1, c1, winner === 'p1', winner === 'p2', this.props.p1Samples ?? 34),
+      p2: player(s2, c2, winner === 'p2', winner === 'p1', this.props.p2Samples ?? 27),
+      hall: hall,
+      winnerText: TEXTS[winner] || '',
+      winnerTextStyle: 'color:' + wc + ';text-shadow:0 0 18px ' + wc + ',0 0 44px ' + wc + '80',
+      bannerStyle: 'background:#1C0F0D;border:3px solid ' + wc + ';box-shadow:0 0 30px ' + wc + '55, inset 0 0 30px ' + wc + '22'
+    };
+  }
+}
+</script>
+</body>
+</html>
