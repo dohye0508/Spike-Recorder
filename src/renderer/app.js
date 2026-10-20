@@ -5,7 +5,7 @@
   var Seg = window.Seg;
   var $ = function (id) { return document.getElementById(id); };
 
-  var P1_COLOR = '#FF4A1C', P2_COLOR = '#36B7FF', AMBER = '#FFB21E';
+  var P1_COLOR = '#FF4A1C', AMBER = '#FFB21E';
   var MAX_SCORE = 9999;
   var TEMP_NAME = 'ㅇㅇㅇ';
 
@@ -36,11 +36,6 @@
     { c: '#D88A4E', e: '#8A4A1E', label: '3위' }
   ];
 
-  function winnerKey(g) {
-    if (g.phase === 'measuring') return 'measuring';
-    if (g.phase === 'result') return g.winner;
-    return 'none';
-  }
 
   function levelOf(v) {
     return Math.max(0, Math.min(15, Math.round((v / MAX_SCORE) * 15)));
@@ -55,14 +50,14 @@
     return html;
   }
 
-  function player(color, isWin, isLose, samples, needed, best) {
+  function player(color, samples, needed, best) {
     samples = Math.max(0, Math.min(needed, samples || 0));
     return {
       samples: samples,
       best: best,
       bar: 'height:100%;width:' + (samples / needed * 100) + '%;background:' + color + ';box-shadow:0 0 10px ' + color,
       labelStyle: 'color:' + color + ';text-shadow:0 0 12px ' + color + '99',
-      panel: 'background:#1C0F0D;' + (isWin ? 'border:2px solid ' + color + ';box-shadow:0 0 0 6px ' + color + '1F, 0 0 48px ' + color + '40' : 'border:2px solid #3A2420') + (isLose ? ';opacity:0.62' : '')
+      panel: 'background:#1C0F0D;border:2px solid #3A2420'
     };
   }
 
@@ -96,55 +91,60 @@
   }
 
   // 숫자·레벨 미터는 아래 애니메이션 루프가 채운다 (id: p1-digits, p1-meter, p1-level)
-  function playerPanel(p, side, needed, measuring) {
-    var isP1 = side === 1;
-    var id = 'p' + side;
+  function playerPanel(p, needed, measuring) {
     var info = '측정 ' + p.samples + ' / ' + needed + ' · 최고 ' + p.best;
     var status = measuring
-      ? (isP1
-        ? '<div style="display: flex; flex-direction: column; gap: 8px; width: 270px">' +
-          '<div style="font-size: 22px; color: #E9DAD5">' + info + '</div>' +
-          '<div style="height: 10px; border-radius: 5px; background: #2E1B17; overflow: hidden"><div style="' + p.bar + '"></div></div></div>'
-        : '<div style="display: flex; flex-direction: column; gap: 8px; width: 270px; align-items: flex-end">' +
-          '<div style="font-size: 22px; color: #E9DAD5">' + info + '</div>' +
-          '<div style="width: 100%; height: 10px; border-radius: 5px; background: #2E1B17; overflow: hidden; display: flex; justify-content: flex-end"><div style="' + p.bar + '"></div></div></div>')
-      : '<div id="' + id + '-level" style="font-size: 22px; color: #B8A29B"></div>';
-    return '<div style="width: 420px; box-sizing: border-box; padding: 32px 28px; border-radius: 24px; display: flex; flex-direction: ' + (isP1 ? 'row' : 'row-reverse') + '; gap: 32px; align-items: center; ' + p.panel + '">' +
-      '<div id="' + id + '-meter" style="display: flex; flex-direction: column; gap: 7px"></div>' +
-      '<div style="display: flex; flex-direction: column; gap: 28px; align-items: ' + (isP1 ? 'flex-start' : 'flex-end') + '">' +
-      '<div style="font-size: 40px; ' + p.labelStyle + '">PLAYER ' + side + '</div>' +
-      '<div id="' + id + '-digits"></div>' + status +
+      ? '<div style="display: flex; flex-direction: column; gap: 8px; width: 270px">' +
+        '<div style="font-size: 22px; color: #E9DAD5">' + info + '</div>' +
+        '<div style="height: 10px; border-radius: 5px; background: #2E1B17; overflow: hidden"><div style="' + p.bar + '"></div></div></div>'
+      : '<div id="p1-level" style="font-size: 22px; color: #B8A29B"></div>';
+    return '<div style="width: 420px; box-sizing: border-box; padding: 32px 28px; border-radius: 24px; display: flex; flex-direction: row; gap: 32px; align-items: center; ' + p.panel + '">' +
+      '<div id="p1-meter" style="display: flex; flex-direction: column; gap: 7px"></div>' +
+      '<div style="display: flex; flex-direction: column; gap: 28px; align-items: flex-start">' +
+      '<div style="font-size: 40px; ' + p.labelStyle + '">PLAYER 1</div>' +
+      '<div id="p1-digits"></div>' + status +
       '</div></div>';
+  }
+
+  // 결과 화면 위쪽 문구: 명예의 전당 순위, 그리고 전체 기록 중 순위(5위 밖이어도 알려 준다)
+  function resultLines(r) {
+    var top = '최종 기록', sub = '';
+    if (r) {
+      if (r.rank) top = '명예의 전당 ' + r.rank + '위!';
+      if (r.place) sub = '지금까지 ' + r.total + '개 기록 중 ' + r.place + '위';
+      else if (!r.score) sub = '기록이 없습니다';
+    }
+    return { top: top, sub: sub };
   }
 
   function renderMain() {
     var g = state.game;
-    var winner = winnerKey(g);
+    var phase = g.phase;
     var needed = g.samplesNeeded;
-    var wc = winner === 'p1' ? P1_COLOR : winner === 'p2' ? P2_COLOR : AMBER;
-    var measuring = winner === 'measuring';
-    var LABELS = { measuring: '5초 동안 힘껏 쥐세요', draw: '동점', none: '다음 경기 대기' };
-    var TEXTS = { p1: 'PLAYER 1', p2: 'PLAYER 2', draw: 'DRAW', measuring: '측정 중', none: 'START 버튼을 누르세요' };
+    var measuring = phase === 'measuring';
+    var res = resultLines(phase === 'result' ? state.result : null);
+    var labels = { measuring: '5초 동안 힘껏 쥐세요', result: res.top, idle: '다음 경기 대기' };
+    var texts = { measuring: '측정 중', result: '최종 기록', idle: 'START 버튼을 누르세요' };
+    var wc = AMBER;
     var winnerTextStyle = 'color:' + wc + ';text-shadow:0 0 18px ' + wc + ',0 0 44px ' + wc + '80';
     var bannerStyle = 'background:#1C0F0D;border:3px solid ' + wc + ';box-shadow:0 0 30px ' + wc + '55, inset 0 0 30px ' + wc + '22';
-    var p1 = player(P1_COLOR, winner === 'p1', winner === 'p2', g.p1.samples, needed, g.p1.score);
-    var p2 = player(P2_COLOR, winner === 'p2', winner === 'p1', g.p2.samples, needed, g.p2.score);
+    var p1 = player(P1_COLOR, g.p1.samples, needed, g.p1.score);
 
     var banner = '<div style="align-self: center; width: 980px; box-sizing: border-box; padding: 22px 40px 26px; border-radius: 28px; display: flex; flex-direction: column; align-items: center; gap: 4px; ' + bannerStyle + '">' +
-      '<div style="font-size: 26px; letter-spacing: 0.3em; color: #C9B3AC">' + (LABELS[winner] || 'WINNER') + '</div>' +
-      '<div style="font-size: 92px; line-height: 1; white-space: nowrap; ' + winnerTextStyle + '">' + (TEXTS[winner] || '') + '</div>' +
-      (winner === 'draw' ? '<div style="margin-top: 10px; font-size: 24px; color: #C9B3AC">관리자가 새 경기를 시작하면 다시 측정합니다</div>' : '') +
+      '<div style="font-size: 26px; letter-spacing: 0.3em; color: #C9B3AC; white-space: nowrap">' + labels[phase] + '</div>' +
+      '<div style="font-size: 92px; line-height: 1; white-space: nowrap; ' + winnerTextStyle + '">' + texts[phase] + '</div>' +
+      (res.sub ? '<div style="margin-top: 10px; font-size: 28px; color: #E9DAD5; white-space: nowrap">' + res.sub + '</div>' : '') +
       '</div>';
 
-    var hall = '<div style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 28px 32px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 14px">' +
+    var hall = '<div style="width: 408px; flex: none; min-width: 0; box-sizing: border-box; padding: 28px 32px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 14px">' +
       '<h2 style="margin: 0 0 6px; font-size: 44px; font-weight: 400; text-align: center; color: #FFB21E; text-shadow: 0 0 14px rgba(255,178,30,0.55)">명예의 전당</h2>' +
       hallRows(state.hall) + '</div>';
 
     $('main').innerHTML = banner +
-      '<div style="flex-grow: 1; display: flex; gap: 40px; align-items: stretch; min-height: 0">' +
-      playerPanel(p1, 1, needed, measuring) + hall + playerPanel(p2, 2, needed, measuring) +
+      '<div style="flex-grow: 1; display: flex; gap: 40px; align-items: stretch; justify-content: center; min-height: 0">' +
+      playerPanel(p1, needed, measuring) + hall +
       '</div>';
-    drawn = { p1: -1, p2: -1 }; // 새로 만든 칸이라 다시 그리기
+    drawn = { p1: -1 }; // 새로 만든 칸이라 다시 그리기
     drawPlayers();
   }
 
@@ -152,8 +152,8 @@
   // 아두이노 값은 0.1초마다 오지만, 화면은 매 프레임 목표값을 향해 부드럽게 따라가서 연속적으로 오르내린다.
   // 측정 중 목표값 = 방금 들어온 값(현재 힘), 그 밖에는 최종 점수(최댓값).
   var SMOOTH_MS = 70;
-  var shown = { p1: 0, p2: 0 };
-  var drawn = { p1: -1, p2: -1 };
+  var shown = { p1: 0 };
+  var drawn = { p1: -1 };
   var lastFrame = 0;
 
   function targetOf(k) {
@@ -162,11 +162,11 @@
   }
 
   function drawPlayers() {
-    ['p1', 'p2'].forEach(function (k) {
+    ['p1'].forEach(function (k) {
       var v = Math.round(shown[k]);
       if (v === drawn[k]) return;
       drawn[k] = v;
-      var color = k === 'p1' ? P1_COLOR : P2_COLOR;
+      var color = P1_COLOR;
       var d = $(k + '-digits'), m = $(k + '-meter'), l = $(k + '-level');
       if (d) d.innerHTML = Seg.display(Seg.pad(v), 104, color);
       if (m) m.innerHTML = meterHtml(v);
@@ -179,7 +179,7 @@
     lastFrame = t;
     if (state) {
       var a = 1 - Math.exp(-dt / SMOOTH_MS);
-      ['p1', 'p2'].forEach(function (k) {
+      ['p1'].forEach(function (k) {
         var target = targetOf(k);
         shown[k] = Math.abs(target - shown[k]) < 1 ? target : shown[k] + (target - shown[k]) * a;
       });
@@ -195,11 +195,7 @@
 
   function stateLabel(g) {
     if (g.phase === 'measuring') return ['측정 중', AMBER];
-    if (g.phase === 'result') {
-      if (g.winner === 'p1') return ['PLAYER 1 승 · 재경기 대기', '#FF6A45'];
-      if (g.winner === 'p2') return ['PLAYER 2 승 · 재경기 대기', '#5CC4FF'];
-      return ['DRAW · 재경기 대기', AMBER];
-    }
+    if (g.phase === 'result') return ['기록 ' + g.p1.score + '점 · 다음 도전 대기', AMBER];
     return ['대기 중 · START 대기', '#C9B3AC'];
   }
 
@@ -233,8 +229,7 @@
         (temp ? '<div style="position: absolute; right: 16px; top: 0; bottom: 0; display: flex; align-items: center; pointer-events: none; font-size: 18px; color: #FFB21E">임시 이름</div>' : '') +
         '</div>' +
         '<div style="font-size: 34px; color: #FFB21E; font-variant-numeric: tabular-nums">' + d.score + '</div>' +
-        '<div style="display: flex; flex-direction: column; gap: 2px"><div style="font-size: 22px; color:' + (d.player === 'PLAYER 1' ? '#FF6A45' : '#5CC4FF') + '">' + d.player + '</div>' +
-        '<div style="font-size: 16px; color: #8E7770">' + whenText + '</div></div>' +
+        '<div style="font-size: 18px; color: #8E7770">' + whenText + '</div>' +
         '</div>';
     }).join('');
     if (!records.length) {
@@ -255,8 +250,7 @@
   }
 
   function fillSettingsInputs() {
-    $('cal-p1').value = state.settings.calibration.p1;
-    $('cal-p2').value = state.settings.calibration.p2;
+    $('cal').value = state.settings.calibration;
   }
 
   function renderAdmin() {
@@ -275,8 +269,7 @@
       return ps[k].path ? ps[k].path + ' · 2초 넘게 신호 없음' : '신호 없음 · 열린 포트 ' + openCount + '개';
     };
     $('ports').innerHTML =
-      port('PLAYER 1', ps.p1.connected ? ps.p1.path : noSignal('p1'), ps.p1.connected, '#FF6A45') +
-      port('PLAYER 2', ps.p2.connected ? ps.p2.path : noSignal('p2'), ps.p2.connected, '#5CC4FF');
+      port('PLAYER 1', ps.p1.connected ? ps.p1.path : noSignal('p1'), ps.p1.connected, '#FF6A45');
 
     $('sim-toggle').checked = state.sim;
     $('btn-fullscreen').textContent = state.fullscreen ? '창 모드로 보기' : '전체화면으로 보기';
@@ -328,9 +321,7 @@
   }
 
   function saveSettings() {
-    var next = {
-      calibration: { p1: parseFloat($('cal-p1').value), p2: parseFloat($('cal-p2').value) }
-    };
+    var next = { calibration: parseFloat($('cal').value) };
     api.saveSettings(next).then(function (s) {
       state.settings = s;
       fillSettingsInputs();
@@ -358,7 +349,7 @@
 
   // ───────────────────────── 키보드 ─────────────────────────
   // 한글 입력 상태에서도 동작하도록 e.key 대신 e.code 사용
-  var SIM_KEYS = { KeyA: 'a', KeyL: 'l', KeyT: 't' };
+  var SIM_KEYS = { KeyA: 'a' };
   var held = {};
 
   function releaseSimKeys() {

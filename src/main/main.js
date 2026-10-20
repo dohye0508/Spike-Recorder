@@ -20,7 +20,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let win = null;
-let store, settings, records, game, serial, sim;
+let store, settings, records, history, lastResult = null, game, serial, sim;
 let lastSaveError = null;
 let lastPayload = '';
 
@@ -38,10 +38,20 @@ function saveHall() {
   }
 }
 
+function saveHistory() {
+  try {
+    store.saveHistory(history);
+  } catch (err) {
+    lastSaveError = '기록 저장 실패: ' + err.message;
+    console.error('[main]', lastSaveError);
+  }
+}
+
 function payload() {
   const t = now();
   return {
     game: game.snapshot(t),
+    result: lastResult,
     hall: records,
     ports: serial.status(t),
     settings,
@@ -132,7 +142,7 @@ function setupMenu() {
 
 function setupIpc() {
   ipcMain.handle('state:get', () => payload());
-  ipcMain.handle('game:start', () => { game.start(now()); push(); });
+  ipcMain.handle('game:start', () => { if (game.start(now())) lastResult = null; push(); });
   ipcMain.handle('game:stop', () => { game.stop(); push(); });
   ipcMain.handle('hall:saveNames', (_e, names) => {
     if (!names || typeof names !== 'object') return false;
@@ -143,7 +153,7 @@ function setupIpc() {
   });
   ipcMain.handle('serial:reconnect', () => { serial.reconnect(); push(); });
   ipcMain.handle('settings:save', (_e, next) => {
-    settings = normalizeSettings({ ...settings, ...next, calibration: { ...settings.calibration, ...(next && next.calibration) } });
+    settings = normalizeSettings({ ...settings, ...next, emg: { ...settings.emg, ...(next && next.emg) } });
     saveSettings();
     push();
     return settings;
@@ -152,7 +162,7 @@ function setupIpc() {
   ipcMain.handle('sim:key', (_e, key, down) => {
     if (!sim.enabled) return;
     if (key === 's') {
-      if (down) { game.start(now()); push(); }
+      if (down) { if (game.start(now())) lastResult = null; push(); }
     } else if (key === 'release') {
       sim.releaseAll();
     } else {
@@ -167,21 +177,28 @@ app.whenReady().then(() => {
   store = new Store(app.getPath('userData'));
   settings = store.loadSettings();
   records = hall.normalizeHall(store.loadHall());
+  history = hall.normalizeHistory(store.loadHistory());
 
   game = new Game({
     getSettings: () => settings,
-    onResult: (result) => {
-      // RESULT 확정 즉시 자동 저장 (패자·무승부도 각각 검사)
-      const r = hall.applyResult(records, result, new Date());
+    onResult: ({ score }) => {
+      // RESULT 확정 즉시 자동 저장. rank = 명예의 전당 순위, place/total = 전체 기록 중 순위
+      const r = hall.applyResult(records, score, new Date());
       if (r.changed) {
         records = r.hall;
         saveHall();
       }
+      const place = hall.placeOf(history, score);
+      if (score > 0) {
+        history = hall.pushHistory(history, score);
+        saveHistory();
+      }
+      lastResult = { score, rank: r.rank, place, total: history.length };
     },
   });
 
   serial = new SerialManager();
-  serial.on('start', () => { game.start(now()); push(); });
+  serial.on('start', () => { if (game.start(now())) lastResult = null; push(); });
   serial.on('sample', (player, value) => { game.sample(player, value, now()); push(); });
 
   sim = new Simulator((player, value) => {

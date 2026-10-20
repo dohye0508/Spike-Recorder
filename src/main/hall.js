@@ -21,28 +21,44 @@ function insert(hall, entry) {
 }
 
 let seq = 0;
-function makeEntry(score, player, date) {
+function makeEntry(score, date) {
   seq += 1;
   return {
     id: date.getTime().toString(36) + '-' + seq.toString(36) + '-' + Math.random().toString(36).slice(2, 6),
     name: TEMP_NAME,
     score,
-    player, // 'PLAYER 1' | 'PLAYER 2'
     at: date.toISOString(),
   };
 }
 
-/** 경기 결과를 반영한다. 패자·무승부도 각각 검사. 바뀌었으면 changed = true */
-function applyResult(hall, result, date = new Date()) {
-  let next = hall;
-  let changed = false;
-  for (const [score, player] of [[result.p1, 'PLAYER 1'], [result.p2, 'PLAYER 2']]) {
-    if (qualifies(next, score)) {
-      next = insert(next, makeEntry(score, player, date));
-      changed = true;
-    }
-  }
-  return { hall: next, changed };
+/** 기록을 반영한다. rank = 들어간 순위(1~5), 못 들어가면 null. 바뀌었으면 changed = true */
+function applyResult(hall, score, date = new Date()) {
+  if (!qualifies(hall, score)) return { hall, changed: false, rank: null };
+  const entry = makeEntry(score, date);
+  const next = insert(hall, entry);
+  return { hall: next, changed: true, rank: next.indexOf(entry) + 1 };
+}
+
+/**
+ * 지금까지의 모든 기록(history, 점수 배열) 중 몇 위인지. 같은 점수는 먼저 세운 쪽이 위라서 새 기록은 그 뒤.
+ * history 는 이번 기록을 넣기 전의 목록. 0점은 순위를 매기지 않는다(null).
+ */
+function placeOf(history, score) {
+  if (!(score > 0)) return null;
+  let above = 0;
+  for (let i = 0; i < history.length; i++) if (history[i] >= score) above++;
+  return above + 1;
+}
+
+const HISTORY_MAX = 20000;
+function pushHistory(history, score) {
+  const next = history.concat([score]);
+  return next.length > HISTORY_MAX ? next.slice(next.length - HISTORY_MAX) : next;
+}
+
+function normalizeHistory(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(Number).filter((n) => Number.isFinite(n) && n >= 0).map((n) => Math.min(9999, Math.round(n))).slice(-HISTORY_MAX);
 }
 
 function cleanName(name) {
@@ -64,7 +80,6 @@ function normalizeHall(raw) {
       id: String(e.id || 'legacy-' + i),
       name: cleanName(e.name),
       score: Math.max(0, Math.min(9999, Math.round(Number(e.score)))),
-      player: e.player === 'PLAYER 2' ? 'PLAYER 2' : 'PLAYER 1',
       at: typeof e.at === 'string' ? e.at : new Date(0).toISOString(),
     }));
   // 점수 내림차순, 같으면 시간 오름차순
@@ -72,4 +87,4 @@ function normalizeHall(raw) {
   return list.slice(0, HALL_SIZE);
 }
 
-module.exports = { HALL_SIZE, TEMP_NAME, qualifies, insert, applyResult, renameEntries, normalizeHall, cleanName };
+module.exports = { placeOf, pushHistory, normalizeHistory, HALL_SIZE, TEMP_NAME, qualifies, insert, applyResult, renameEntries, normalizeHall, cleanName };

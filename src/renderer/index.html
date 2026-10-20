@@ -32,7 +32,7 @@
           <div id="pending" style="font-size: 22px; color: #FFB21E"></div>
         </div>
         <div style="display: grid; grid-template-columns: 70px minmax(0, 1fr) 150px 140px; gap: 16px; padding: 0 18px; font-size: 20px; color: #B8A29B">
-          <div>순위</div><div>이름</div><div>점수</div><div>기록한 선수</div>
+          <div>순위</div><div>이름</div><div>점수</div><div>일시</div>
         </div>
         <div id="rows" style="display: flex; flex-direction: column; gap: 18px"></div>
         <div style="margin-top: auto; display: flex; align-items: center; gap: 16px">
@@ -68,9 +68,8 @@
             </label>
             <button type="button" id="btn-quit" style="height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid #5A3A33; background: transparent; color: #B8A29B; font-family: inherit; font-size: 16px; cursor: pointer">앱 종료</button>
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center" title="점수 = 원시값 × 보정계수">
-            <label class="field"><span>P1 보정계수</span><input type="number" id="cal-p1" step="0.01" min="0.001"></label>
-            <label class="field"><span>P2 보정계수</span><input type="number" id="cal-p2" step="0.01" min="0.001"></label>
+          <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center" title="점수 = 세기 × 보정계수">
+            <label class="field"><span>보정계수</span><input type="number" id="cal" step="0.01" min="0.001"></label>
             <button type="button" id="btn-save-settings" style="height: 40px; min-width: 76px; padding: 0 12px; border-radius: 10px; border: 2px solid #FFB21E; background: transparent; color: #FFB21E; font-family: inherit; font-size: 20px; cursor: pointer">저장</button>
           </div>
         </div>

@@ -6,7 +6,9 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_SETTINGS = {
-  calibration: { p1: 1.0, p2: 1.0 },
+  calibration: 1.0, // 보정계수 (원시 세기 × 계수 → 점수)
+  emg: { channel: 1, restRms: 0 }, // SpikerBox 채널(1|2), 휴식 RMS(영점)
+  portRoles: {}, // { [path]: 'spikerbox' | 'start' }, 없는 path는 자동 판별
   fullscreen: true, // 앱을 켤 때 전체화면(kiosk)으로 시작할지
 };
 
@@ -63,12 +65,22 @@ function clampNum(v, min, max, def) {
 
 function normalizeSettings(raw) {
   const s = raw && typeof raw === 'object' ? raw : {};
-  const cal = s.calibration && typeof s.calibration === 'object' ? s.calibration : {};
+  // v1 설정은 {p1, p2} 객체였다 → p1 값을 가져온다
+  const cal = s.calibration && typeof s.calibration === 'object' ? s.calibration.p1 : s.calibration;
+  const emg = s.emg && typeof s.emg === 'object' ? s.emg : {};
+  const portRoles = {};
+  if (s.portRoles && typeof s.portRoles === 'object') {
+    Object.keys(s.portRoles).forEach((k) => {
+      if (s.portRoles[k] === 'spikerbox' || s.portRoles[k] === 'start') portRoles[k] = s.portRoles[k];
+    });
+  }
   return {
-    calibration: {
-      p1: clampNum(cal.p1, 0.001, 1000, DEFAULT_SETTINGS.calibration.p1),
-      p2: clampNum(cal.p2, 0.001, 1000, DEFAULT_SETTINGS.calibration.p2),
+    calibration: clampNum(cal, 0.001, 1000, DEFAULT_SETTINGS.calibration),
+    emg: {
+      channel: Number(emg.channel) === 2 ? 2 : 1,
+      restRms: clampNum(emg.restRms, 0, 100000, 0),
     },
+    portRoles,
     fullscreen: typeof s.fullscreen === 'boolean' ? s.fullscreen : DEFAULT_SETTINGS.fullscreen,
   };
 }
@@ -78,6 +90,7 @@ class Store {
     this.dir = dir;
     this.settingsFile = path.join(dir, 'settings.json');
     this.hallFile = path.join(dir, 'hall-of-fame.json');
+    this.historyFile = path.join(dir, 'score-history.json');
   }
 
   loadSettings() {
@@ -98,6 +111,16 @@ class Store {
 
   saveHall(records) {
     writeJsonAtomic(this.hallFile, { records });
+  }
+
+  /** 지금까지의 모든 측정 점수(순위 계산용) */
+  loadHistory() {
+    const data = readJson(this.historyFile, { scores: [] });
+    return Array.isArray(data) ? data : data.scores;
+  }
+
+  saveHistory(scores) {
+    writeJsonAtomic(this.historyFile, { scores });
   }
 }
 

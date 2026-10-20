@@ -1,9 +1,9 @@
 'use strict';
 
 // 경기 상태 기계. 시간은 항상 인자로 받아서(now, ms) 테스트에서 시계를 마음대로 돌릴 수 있게 한다.
-//   IDLE --start--> MEASURING --양쪽 50개(0.1초 × 50 = 5초) 또는 8초--> RESULT
+//   IDLE --start--> MEASURING --50개(0.1초 × 50 = 5초) 또는 8초--> RESULT
 //   RESULT --start--> MEASURING
-// 측정이 끝나면 판정 대기 없이 바로 결과. 최종 점수는 각자 50개 값 중 최댓값.
+// 측정이 끝나면 판정 대기 없이 바로 결과. 최종 점수는 50개 값 중 최댓값. 1인 기록 모드.
 
 const PHASE = { IDLE: 'idle', MEASURING: 'measuring', RESULT: 'result' };
 const SAMPLES_NEEDED = 50;
@@ -24,16 +24,14 @@ function emptyPlayer() {
 class Game {
   /**
    * @param {object} opts
-   * @param {() => {calibration: {p1: number, p2: number}}} opts.getSettings
-   * @param {(result: {winner: string, p1: number, p2: number}) => void} [opts.onResult]
+   * @param {() => {calibration: number}} opts.getSettings
+   * @param {(result: {score: number}) => void} [opts.onResult]
    */
   constructor({ getSettings, onResult }) {
     this.getSettings = getSettings;
     this.onResult = onResult || (() => {});
     this.phase = PHASE.IDLE;
-    this.winner = null;
     this.p1 = emptyPlayer();
-    this.p2 = emptyPlayer();
     this.measureStartedAt = 0;
   }
 
@@ -41,9 +39,7 @@ class Game {
   start(now) {
     if (this.phase === PHASE.MEASURING) return false;
     this.phase = PHASE.MEASURING;
-    this.winner = null;
     this.p1 = emptyPlayer();
-    this.p2 = emptyPlayer();
     this.measureStartedAt = now;
     return true;
   }
@@ -52,19 +48,16 @@ class Game {
   stop() {
     if (this.phase !== PHASE.MEASURING) return false;
     this.phase = PHASE.IDLE;
-    this.winner = null;
     this.p1 = emptyPlayer();
-    this.p2 = emptyPlayer();
     return true;
   }
 
-  /** 아두이노에서 들어온 0.1초 피크값 하나. which = 'p1' | 'p2' */
+  /** 0.1초 구간의 세기 하나. which 는 'p1' 만 받는다(1인 모드). */
   sample(which, raw, now) {
-    if (this.phase !== PHASE.MEASURING) return;
-    const p = this[which];
-    if (!p || p.samples >= SAMPLES_NEEDED) return;
-    const factor = this.getSettings().calibration[which] ?? 1;
-    const v = toScore(raw, factor);
+    if (this.phase !== PHASE.MEASURING || which !== 'p1') return;
+    const p = this.p1;
+    if (p.samples >= SAMPLES_NEEDED) return;
+    const v = toScore(raw, this.getSettings().calibration);
     p.samples += 1;
     p.current = v;
     p.score = Math.max(p.score, v);
@@ -73,22 +66,18 @@ class Game {
 
   tick(now) {
     if (this.phase !== PHASE.MEASURING) return;
-    const full = this.p1.samples >= SAMPLES_NEEDED && this.p2.samples >= SAMPLES_NEEDED;
+    const full = this.p1.samples >= SAMPLES_NEEDED;
     const timedOut = now - this.measureStartedAt >= MEASURE_TIMEOUT_MS;
     if (!full && !timedOut) return;
     this.phase = PHASE.RESULT;
-    const a = this.p1.score, b = this.p2.score;
-    this.winner = a > b ? 'p1' : b > a ? 'p2' : 'draw';
-    this.onResult({ winner: this.winner, p1: a, p2: b });
+    this.onResult({ score: this.p1.score });
   }
 
   snapshot() {
     return {
       phase: this.phase,
-      winner: this.winner,
       samplesNeeded: SAMPLES_NEEDED,
       p1: { ...this.p1 },
-      p2: { ...this.p2 },
     };
   }
 }

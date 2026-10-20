@@ -89,7 +89,7 @@ Spike Recorder의 FFT는 **화면 표시용**(0~50 Hz, 뇌파 알파파 확인)�
 
 - 플레이어는 `p1` 하나. `p2`, `winner`, `draw` 제거.
 - 측정 종료: p1이 50칸을 채우거나 8초 제한.
-- 결과에는 최종 기록(최댓값)과, 명예의 전당에 들어갔으면 **순위(1~5)**가 함께 나온다.
+- 결과에는 최종 기록(최댓값)과, 명예의 전당에 들어갔으면 **순위(1~5)**가 함께 나온다. 5위 밖이어도 **전체 기록 중 몇 위인지(`place`/`total`)**를 한 번 보여 준다. 이를 위해 userData에 `score-history.json`(`{scores:[...]}`, 0점 제외, 최대 20000개)에 모든 측정 점수를 쌓는다. 동점이면 먼저 세운 기록이 위.
 - 명예의 전당: 기존 규칙 유지(상위 5개, 0점 제외, 동점이면 먼저 세운 기록이 위, 새 기록 이름 `ㅇㅇㅇ`). 새 기록에는 `player` 필드를 넣지 않는다. v1 파일의 `player` 필드는 읽을 때 버린다.
 - 설정 v2 형식:
 
@@ -170,7 +170,7 @@ Spike Recorder의 FFT는 **화면 표시용**(0~50 Hz, 뇌파 알파파 확인)�
 ```js
 {
   game: { phase: 'idle'|'measuring'|'result', samplesNeeded: 50, p1: { score, current, samples } },
-  result: { score, rank } | null,      // rank: 1~5 또는 null. START 때 null
+  result: { score, rank, place, total } | null, // rank: 명예의 전당 1~5 또는 null. place: 전체 기록 중 순위(5위 밖도, 0점이면 null), total: 전체 기록 수. START 때 null
   hall: [{ id, name, score, at }],     // player 필드 없음
   ports: {
     spikerbox: { connected, path, hwt, name, channels, baud, fps },
@@ -256,7 +256,7 @@ module.exports = { EmgWindow, strengthOf, RestMeter };
 
 ### Phase 2 — 게임 · 명예의 전당 · 설정 1인화
 
-- [ ] **3. `game.js`, `hall.js`, `store.js`, 화면 최소 수정**
+- [x] **3. `game.js`, `hall.js`, `store.js`, 화면 최소 수정**
 
 `game.js`
 - `p2`, `winner` 제거. `start`, `stop`, `sample('p1', raw, now)`, `tick`는 그대로 두되 p1만 본다. 종료 조건은 `p1.samples >= 50` 또는 8초.
