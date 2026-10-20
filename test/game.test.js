@@ -133,54 +133,85 @@ console.log('명예의 전당');
 
 const D = new Date('2026-10-19T12:00:00Z');
 
-test('기록 5개 미만이면 들어가고 순위를 돌려준다', () => {
-  let r = hall.applyResult([], 3815, D);
+function seed(scores) {
+  // 서로 다른 시각에 세운 기록들 (앞쪽이 먼저)
+  let recs = [];
+  scores.forEach((sc, i) => { recs = hall.addResult(recs, sc, new Date(D.getTime() + i * 1000)).records; });
+  return recs;
+}
+
+test('모든 기록이 남고, 명예의 전당은 상위 5개', () => {
+  let r = hall.addResult([], 3815, D);
   assert.ok(r.changed);
-  assert.strictEqual(r.rank, 1);
-  r = hall.applyResult(r.hall, 4270, D);
-  assert.strictEqual(r.rank, 1);
-  assert.deepStrictEqual(r.hall.map((e) => [e.score, e.name]), [[4270, 'ㅇㅇㅇ'], [3815, 'ㅇㅇㅇ']]);
-  assert.strictEqual(r.hall[0].at, D.toISOString());
-  assert.ok(!('player' in r.hall[0]));
+  assert.deepStrictEqual([r.rank, r.place, r.total], [1, 1, 1]);
+  r = hall.addResult(r.records, 4270, D);
+  assert.deepStrictEqual([r.rank, r.place, r.total], [1, 1, 2]);
+  assert.deepStrictEqual(hall.hallOf(r.records).map((e) => [e.score, e.name]), [[4270, 'ㅇㅇㅇ'], [3815, 'ㅇㅇㅇ']]);
+  assert.strictEqual(r.records[0].at, D.toISOString());
+  assert.ok(!('player' in r.records[0]));
+  const recs = seed([9000, 8000, 7000, 6000, 5000, 4000, 3000]);
+  assert.strictEqual(recs.length, 7);
+  assert.deepStrictEqual(hall.hallOf(recs).map((e) => e.score), [9000, 8000, 7000, 6000, 5000]);
 });
 
-test('5위보다 높아야 들어감(rank null), 0점은 안 들어감', () => {
-  let h = [];
-  for (const s of [9000, 8000, 7000, 6000, 5000]) h = hall.insert(h, { id: String(s), score: s, name: 'x', at: '' });
-  let r = hall.applyResult(h, 5000, D);
-  assert.strictEqual(r.changed, false);
-  assert.strictEqual(r.rank, null);
-  r = hall.applyResult(h, 9500, D);
-  assert.strictEqual(r.rank, 1);
-  assert.deepStrictEqual(r.hall.map((e) => e.score), [9500, 9000, 8000, 7000, 6000]);
-  r = hall.applyResult([], 0, D);
-  assert.strictEqual(r.changed, false);
-  assert.strictEqual(r.rank, null);
+test('5위 밖이면 rank null 이지만 전체 순위(place)는 나온다, 0점은 남기지 않는다', () => {
+  const recs = seed([9000, 8000, 7000, 6000, 5000]);
+  let r = hall.addResult(recs, 5000, new Date(D.getTime() + 99000));
+  assert.strictEqual(r.changed, true);
+  assert.deepStrictEqual([r.rank, r.place, r.total], [null, 6, 6]);
+  r = hall.addResult(recs, 9500, new Date(D.getTime() + 99000));
+  assert.deepStrictEqual([r.rank, r.place], [1, 1]);
+  r = hall.addResult(recs, 0, D);
+  assert.deepStrictEqual([r.changed, r.rank, r.place, r.total], [false, null, null, 5]);
 });
 
 test('같은 점수면 먼저 세운 기록이 위', () => {
-  const h = [{ id: 'old', score: 6000, name: '선배', at: '2026-01-01T00:00:00Z' }];
-  const r = hall.applyResult(h, 6000, D);
+  const recs = [{ id: 'old', score: 6000, name: '선배', at: '2026-01-01T00:00:00Z' }];
+  const r = hall.addResult(recs, 6000, D);
   assert.strictEqual(r.rank, 2);
-  assert.deepStrictEqual(r.hall.map((e) => e.name), ['선배', 'ㅇㅇㅇ']);
+  assert.deepStrictEqual(hall.hallOf(r.records).map((e) => e.name), ['선배', 'ㅇㅇㅇ']);
 });
 
-test('전체 기록 중 순위(5위 밖도): 동점이면 먼저 세운 쪽이 위', () => {
-  assert.strictEqual(hall.placeOf([], 100), 1);
-  assert.strictEqual(hall.placeOf([900, 500, 100, 50], 300), 3);
-  assert.strictEqual(hall.placeOf([900, 500, 300], 300), 4);
-  assert.strictEqual(hall.placeOf([900, 500], 0), null);
-  assert.deepStrictEqual(hall.pushHistory([1, 2], 3), [1, 2, 3]);
-  assert.deepStrictEqual(hall.normalizeHistory([5, 'x', -1, 20000, '7']), [5, 9999, 7]);
-  assert.deepStrictEqual(hall.normalizeHistory('bad'), []);
+test('이름·점수 수정: 빈 이름은 ㅇㅇㅇ, 점수는 0~9999, 잘못된 점수는 무시, 순위 다시 매김', () => {
+  const recs = seed([100, 50, 30]);
+  const [a, b, c] = hall.sortRecords(recs).map((e) => e.id);
+  const next = hall.editRecords(recs, {
+    [a]: { name: '  김 철수  ' },
+    [b]: { name: '   ', score: 99999 },
+    [c]: { score: 'abc' },
+    없는id: { name: 'x' },
+  });
+  const byId = Object.fromEntries(next.map((e) => [e.id, e]));
+  assert.deepStrictEqual([byId[a].name, byId[a].score], ['김 철수', 100]);
+  assert.deepStrictEqual([byId[b].name, byId[b].score], ['ㅇㅇㅇ', 9999]);
+  assert.strictEqual(byId[c].score, 30);
+  assert.deepStrictEqual(hall.hallOf(next).map((e) => e.id), [b, a, c]);
+  assert.strictEqual(hall.editRecords(recs, null), recs);
 });
 
-test('이름 수정, 빈 이름은 ㅇㅇㅇ', () => {
-  let r = hall.applyResult([], 100, D);
-  r = hall.applyResult(r.hall, 50, D);
-  const ids = r.hall.map((e) => e.id);
-  const h = hall.renameEntries(r.hall, { [ids[0]]: '  김 철수  ', [ids[1]]: '   ' });
-  assert.deepStrictEqual(h.map((e) => e.name), ['김 철수', 'ㅇㅇㅇ']);
+test('하나씩 지우기, 0점으로 고친 기록은 명예의 전당에서 빠진다', () => {
+  const recs = seed([300, 200, 100]);
+  const [top, mid] = hall.sortRecords(recs).map((e) => e.id);
+  const del = hall.deleteRecords(recs, [top]);
+  assert.deepStrictEqual(del.map((e) => e.score).sort((x, y) => y - x), [200, 100]);
+  assert.strictEqual(hall.deleteRecords(recs, 'bad').length, 3);
+  const zero = hall.editRecords(recs, { [mid]: { score: 0 } });
+  assert.deepStrictEqual(hall.hallOf(zero).map((e) => e.score), [300, 100]);
+});
+
+test('v2.0.x 파일 옮기기: 명예의 전당 이름은 살리고, 나머지 점수는 임시 이름으로', () => {
+  const oldHall = [
+    { id: 'h1', name: '홍길동', score: 7812, player: 'PLAYER 1', at: '2026-10-20T01:00:00Z' },
+    { id: 'h2', name: 'ㅇㅇㅇ', score: 500, at: '2026-10-20T02:00:00Z' },
+  ];
+  const recs = hall.migrateRecords(oldHall, [500, 300, 7812, 0, 'x', 300]);
+  assert.deepStrictEqual(hall.sortRecords(recs).map((e) => e.name + ' ' + e.score), ['홍길동 7812', 'ㅇㅇㅇ 500', 'ㅇㅇㅇ 300', 'ㅇㅇㅇ 300']);
+  assert.ok(recs.every((e) => !('player' in e)));
+  assert.deepStrictEqual(hall.migrateRecords(null, null), []);
+  assert.deepStrictEqual(hall.normalizeRecords('bad'), []);
+  const norm = hall.normalizeRecords([{ id: 'a', score: '12' }, { id: 'a', score: 20000, name: 'x' }, { score: 'nope' }]);
+  assert.deepStrictEqual(norm.map((e) => [e.score, e.name]), [[12, 'ㅇㅇㅇ'], [9999, 'x']]);
+  assert.notStrictEqual(norm[0].id, norm[1].id);
 });
 
 console.log('저장');
@@ -194,22 +225,22 @@ test('저장 후 다시 읽어도 유지 (앱 재시작 흉내), 손상 파일�
   assert.ok(fs.existsSync(path.join(dir, 'settings.json')));
   const custom = normalizeSettings({ calibration: 1.25, emg: { channel: 2, restRms: 12.5 }, portRoles: { '/dev/a': 'start' }, fullscreen: false });
   store.saveSettings(custom);
-  let r = hall.applyResult([], 3815, D);
-  r = hall.applyResult(r.hall, 4270, D);
-  store.saveHall(hall.renameEntries(r.hall, { [r.hall[0].id]: '홍길동' }));
-  store.saveHistory([3815, 4270]);
+  let r = hall.addResult([], 3815, D);
+  r = hall.addResult(r.records, 4270, D);
+  const top = hall.sortRecords(r.records)[0].id;
+  assert.strictEqual(store.loadRecords(), null); // 아직 records.json 없음 → 옛 파일에서 옮겨야 함
+  store.saveRecords(hall.editRecords(r.records, { [top]: { name: '홍길동' } }));
 
   const again = new Store(dir);
   assert.deepStrictEqual(again.loadSettings(), custom);
   assert.strictEqual(custom.emg.channel, 2);
-  const loaded = hall.normalizeHall(again.loadHall());
+  const loaded = hall.sortRecords(hall.normalizeRecords(again.loadRecords()));
   assert.deepStrictEqual(loaded.map((e) => e.name + ' ' + e.score), ['홍길동 4270', 'ㅇㅇㅇ 3815']);
-  assert.deepStrictEqual(again.loadHistory(), [3815, 4270]);
-  assert.ok(!fs.existsSync(path.join(dir, 'hall-of-fame.json.tmp')));
+  assert.ok(!fs.existsSync(path.join(dir, 'records.json.tmp')));
 
-  fs.writeFileSync(path.join(dir, 'hall-of-fame.json'), '{ broken');
-  assert.deepStrictEqual(hall.normalizeHall(again.loadHall()), []);
-  assert.ok(fs.readdirSync(dir).some((f) => f.startsWith('hall-of-fame.json.corrupt-')));
+  fs.writeFileSync(path.join(dir, 'records.json'), '{ broken');
+  assert.deepStrictEqual(hall.normalizeRecords(again.loadRecords()), []);
+  assert.ok(fs.readdirSync(dir).some((f) => f.startsWith('records.json.corrupt-')));
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -223,7 +254,7 @@ test('설정값 범위 정리, v1 설정(calibration {p1,p2}) 이전', () => {
 });
 
 test('v1 명예의 전당 파일(player 있음)을 읽으면 player 는 버린다', () => {
-  const h = hall.normalizeHall([{ id: 'a', name: '옛날', score: 123, player: 'PLAYER 2', at: '2026-01-01T00:00:00Z' }]);
+  const h = hall.normalizeRecords([{ id: 'a', name: '옛날', score: 123, player: 'PLAYER 2', at: '2026-01-01T00:00:00Z' }]);
   assert.strictEqual(h.length, 1);
   assert.ok(!('player' in h[0]));
   assert.strictEqual(h[0].score, 123);
@@ -377,14 +408,11 @@ test('가짜 SpikerBox: A 를 누른 구간의 RMS 가 뗀 구간보다 10배 �
 test('기록 전체 삭제: 빈 목록으로 저장하고 지우기 전 파일은 백업', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'punch-'));
   const store = new Store(dir);
-  store.saveHall([{ id: 'a', name: '홍길동', score: 7812, at: new Date().toISOString() }]);
-  store.saveHistory([7812, 300]);
+  store.saveRecords([{ id: 'a', name: '홍길동', score: 7812, at: new Date().toISOString() }]);
   store.resetRecords(123);
   const again = new Store(dir);
-  assert.deepStrictEqual(again.loadHall(), []);
-  assert.deepStrictEqual(again.loadHistory(), []);
-  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'hall-of-fame.json.bak-123'), 'utf8')).records[0].score, 7812);
-  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'score-history.json.bak-123'), 'utf8')).scores, [7812, 300]);
+  assert.deepStrictEqual(again.loadRecords(), []);
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'records.json.bak-123'), 'utf8')).records[0].score, 7812);
   // 파일이 없을 때도 실패하지 않는다
   const { g } = makeGame({ calibration: 1 });
   g.start(0);
@@ -394,7 +422,7 @@ test('기록 전체 삭제: 빈 목록으로 저장하고 지우기 전 파일�
   assert.strictEqual(g.snapshot().phase, 'idle');
   const empty = new Store(fs.mkdtempSync(path.join(os.tmpdir(), 'punch-')));
   empty.resetRecords(1);
-  assert.deepStrictEqual(empty.loadHall(), []);
+  assert.deepStrictEqual(empty.loadRecords(), []);
 });
 
 console.log(`\n${passed}개 통과`);

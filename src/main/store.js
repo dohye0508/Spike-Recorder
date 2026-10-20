@@ -89,6 +89,8 @@ class Store {
   constructor(dir) {
     this.dir = dir;
     this.settingsFile = path.join(dir, 'settings.json');
+    this.recordsFile = path.join(dir, 'records.json');
+    // v2.0.x 파일: records.json 이 없을 때 한 번만 읽어서 옮긴다
     this.hallFile = path.join(dir, 'hall-of-fame.json');
     this.historyFile = path.join(dir, 'score-history.json');
   }
@@ -104,32 +106,33 @@ class Store {
     writeJsonAtomic(this.settingsFile, settings);
   }
 
-  loadHall() {
+  /** 모든 기록 [{id, name, score, at}]. records.json 이 아직 없으면 null (→ 옛 파일에서 옮겨야 함) */
+  loadRecords() {
+    if (!fs.existsSync(this.recordsFile)) return null;
+    const data = readJson(this.recordsFile, { records: [] });
+    return Array.isArray(data) ? data : data.records;
+  }
+
+  saveRecords(records) {
+    writeJsonAtomic(this.recordsFile, { records });
+  }
+
+  /** v2.0.x 의 명예의 전당 파일 */
+  loadLegacyHall() {
     const data = readJson(this.hallFile, { records: [] });
     return Array.isArray(data) ? data : data.records;
   }
 
-  saveHall(records) {
-    writeJsonAtomic(this.hallFile, { records });
-  }
-
-  /** 지금까지의 모든 측정 점수(순위 계산용) */
-  loadHistory() {
+  /** v2.0.x 의 전체 점수 파일 */
+  loadLegacyHistory() {
     const data = readJson(this.historyFile, { scores: [] });
     return Array.isArray(data) ? data : data.scores;
   }
 
-  saveHistory(scores) {
-    writeJsonAtomic(this.historyFile, { scores });
-  }
-
   /** 기록 전체 삭제: 지우기 전 파일은 *.bak-<시각> 으로 남겨 두고 빈 목록으로 저장 */
   resetRecords(stamp = Date.now()) {
-    for (const file of [this.hallFile, this.historyFile]) {
-      if (fs.existsSync(file)) fs.copyFileSync(file, file + '.bak-' + stamp);
-    }
-    this.saveHall([]);
-    this.saveHistory([]);
+    if (fs.existsSync(this.recordsFile)) fs.copyFileSync(this.recordsFile, this.recordsFile + '.bak-' + stamp);
+    this.saveRecords([]);
   }
 }
 

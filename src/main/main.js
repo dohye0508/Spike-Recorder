@@ -21,7 +21,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let win = null;
-let store, settings, records, history, lastResult = null, game, serial, sim;
+let store, settings, records, hallTop = [], recordsRev = 0, lastResult = null, game, serial, sim;
 const emgWin = new EmgWindow();
 const rest = new RestMeter(3000);
 let live = { rms: 0, strength: 0 };
@@ -36,19 +36,14 @@ function now() {
   return Date.now();
 }
 
-function saveHall() {
+/** 기록이 바뀌면 저장하고, 명예의 전당(상위 5개)을 다시 계산하고, 관리자 화면이 다시 받아 가도록 rev 를 올린다 */
+function setRecords(next) {
+  records = next;
+  hallTop = hall.hallOf(records);
+  recordsRev++;
   try {
-    store.saveHall(records);
+    store.saveRecords(records);
     lastSaveError = null;
-  } catch (err) {
-    lastSaveError = '명예의 전당 저장 실패: ' + err.message;
-    console.error('[main]', lastSaveError);
-  }
-}
-
-function saveHistory() {
-  try {
-    store.saveHistory(history);
   } catch (err) {
     lastSaveError = '기록 저장 실패: ' + err.message;
     console.error('[main]', lastSaveError);
@@ -60,7 +55,9 @@ function payload() {
   return {
     game: game.snapshot(t),
     result: lastResult,
-    hall: records,
+    hall: hallTop,
+    recordsRev, // 전체 기록은 크기가 커서 payload 에 싣지 않고, 관리자 화면이 records:get 으로 받아 간다
+    recordsTotal: records.length,
     ports: serial.status(t),
     emg: { rms: Math.round(live.rms * 10) / 10, strength: Math.round(live.strength * 10) / 10, restRms: settings.emg.restRms, zeroing: rest.running },
     settings,
@@ -153,19 +150,26 @@ function setupIpc() {
   ipcMain.handle('state:get', () => payload());
   ipcMain.handle('game:start', () => { if (game.start(now())) lastResult = null; push(); });
   ipcMain.handle('game:stop', () => { game.stop(); push(); });
-  ipcMain.handle('hall:saveNames', (_e, names) => {
-    if (!names || typeof names !== 'object') return false;
-    records = hall.renameEntries(records, names);
-    saveHall();
+  ipcMain.handle('records:get', () => ({ rev: recordsRev, records: hall.sortRecords(records) }));
+  ipcMain.handle('records:save', (_e, edits) => {
+    if (!edits || typeof edits !== 'object') return false;
+    setRecords(hall.editRecords(records, edits));
     push();
     return !lastSaveError;
   });
-  ipcMain.handle('hall:reset', () => {
+  ipcMain.handle('records:delete', (_e, ids) => {
+    if (!Array.isArray(ids)) return false;
+    setRecords(hall.deleteRecords(records, ids));
+    push();
+    return !lastSaveError;
+  });
+  ipcMain.handle('records:reset', () => {
     if (game.phase === 'measuring') return false;
     try {
       store.resetRecords();
       records = [];
-      history = [];
+      hallTop = [];
+      recordsRev++;
       lastResult = null;
       lastSaveError = null;
       game.clear();
@@ -215,24 +219,22 @@ function setupIpc() {
 app.whenReady().then(() => {
   store = new Store(app.getPath('userData'));
   settings = store.loadSettings();
-  records = hall.normalizeHall(store.loadHall());
-  history = hall.normalizeHistory(store.loadHistory());
+  const saved = store.loadRecords();
+  if (saved) {
+    records = hall.normalizeRecords(saved);
+    hallTop = hall.hallOf(records);
+  } else {
+    // 처음 실행이거나 v2.0.x 데이터: 명예의 전당 + 점수 목록을 하나로 옮긴다 (옛 파일은 그대로 둔다)
+    setRecords(hall.migrateRecords(store.loadLegacyHall(), store.loadLegacyHistory()));
+  }
 
   game = new Game({
     getSettings: () => settings,
     onResult: ({ score }) => {
       // RESULT 확정 즉시 자동 저장. rank = 명예의 전당 순위, place/total = 전체 기록 중 순위
-      const r = hall.applyResult(records, score, new Date());
-      if (r.changed) {
-        records = r.hall;
-        saveHall();
-      }
-      const place = hall.placeOf(history, score);
-      if (score > 0) {
-        history = hall.pushHistory(history, score);
-        saveHistory();
-      }
-      lastResult = { score, rank: r.rank, place, total: history.length };
+      const r = hall.addResult(records, score, new Date());
+      if (r.changed) setRecords(r.records);
+      lastResult = { score, rank: r.rank, place: r.place, total: r.total };
     },
   });
 

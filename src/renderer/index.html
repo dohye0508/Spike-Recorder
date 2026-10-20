@@ -27,18 +27,19 @@
     <div style="flex-grow: 1; min-height: 0; display: flex; gap: 32px">
 
       <div style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 28px 32px; border-radius: 24px; background: #1C0F0D; border: 1px solid #3A2420; display: flex; flex-direction: column; gap: 18px">
-        <div style="display: flex; align-items: baseline; gap: 16px">
-          <h2 style="margin: 0; font-size: 36px; font-weight: 400">명예의 전당 이름 수정</h2>
-          <div id="pending" style="font-size: 22px; color: #FFB21E"></div>
+        <div style="display: flex; align-items: center; gap: 16px">
+          <h2 id="records-title" style="margin: 0; font-size: 36px; font-weight: 400; white-space: nowrap">명예의 전당</h2>
+          <div id="pending" style="flex-grow: 1; font-size: 22px; color: #FFB21E; white-space: nowrap"></div>
+          <button type="button" id="btn-toggle-records" style="height: 46px; padding: 0 18px; border-radius: 12px; border: 2px solid #FFB21E; background: transparent; color: #FFB21E; font-family: inherit; font-size: 21px; cursor: pointer; white-space: nowrap">전체 기록 보기</button>
         </div>
-        <div style="display: grid; grid-template-columns: 70px minmax(0, 1fr) 150px 140px; gap: 16px; padding: 0 18px; font-size: 20px; color: #B8A29B">
-          <div>순위</div><div>이름</div><div>점수</div><div>일시</div>
+        <div style="display: grid; grid-template-columns: 64px minmax(0, 1fr) 128px 112px 48px; gap: 12px; padding: 0 15px; font-size: 20px; color: #B8A29B">
+          <div>순위</div><div>이름</div><div>점수</div><div>일시</div><div></div>
         </div>
-        <div id="rows" style="display: flex; flex-direction: column; gap: 18px"></div>
-        <div style="margin-top: auto; display: flex; align-items: center; gap: 16px">
-          <div id="names-msg" style="flex-grow: 1; font-size: 20px; color: #B8A29B">점수는 측정 직후 자동 저장됩니다. 이름만 여기서 고치세요.</div>
-          <button type="button" id="btn-reset-records" style="height: 56px; padding: 0 22px; border-radius: 14px; border: 2px solid #FF8A7A; background: transparent; color: #FF8A7A; font-family: inherit; font-size: 22px; cursor: pointer; white-space: nowrap">기록 전체 삭제</button>
-          <button type="button" id="btn-save-names" style="height: 56px; padding: 0 34px; border-radius: 14px; border: 0; background: #FFB21E; color: #1A0D0B; font-family: inherit; font-size: 26px; cursor: pointer; box-shadow: 0 0 22px rgba(255,178,30,0.45)">이름 저장</button>
+        <div id="rows" style="flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px"></div>
+        <div style="flex: none; display: flex; align-items: center; gap: 16px">
+          <div id="names-msg" style="flex-grow: 1; min-width: 0; font-size: 19px; color: #B8A29B">이름·점수를 고친 뒤 저장하세요.</div>
+          <button type="button" id="btn-reset-records" style="flex: none; height: 56px; padding: 0 22px; border-radius: 14px; border: 2px solid #FF8A7A; background: transparent; color: #FF8A7A; font-family: inherit; font-size: 22px; cursor: pointer; white-space: nowrap">기록 전체 삭제</button>
+          <button type="button" id="btn-save-names" style="flex: none; white-space: nowrap; height: 56px; padding: 0 30px; border-radius: 14px; border: 0; background: #FFB21E; color: #1A0D0B; font-family: inherit; font-size: 26px; cursor: pointer; box-shadow: 0 0 22px rgba(255,178,30,0.45)">변경 저장</button>
         </div>
       </div>
 

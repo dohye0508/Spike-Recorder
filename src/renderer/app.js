@@ -198,44 +198,76 @@
     return ['대기 중 · START 대기', '#C9B3AC'];
   }
 
+  // 전체 기록은 payload 에 없고, recordsRev 가 바뀔 때마다 records:get 으로 받아 온다 (점수 내림차순)
+  var adminRecords = [];
+  var adminRev = -1;
+  var fetchingRecords = false;
+  var showAll = false;
+  var ROW_COLS = '64px minmax(0,1fr) 128px 112px 48px';
+
+  function syncRecords() {
+    if (fetchingRecords || state.recordsRev === adminRev) return;
+    fetchingRecords = true;
+    api.getRecords().then(function (r) {
+      fetchingRecords = false;
+      adminRecords = r.records;
+      adminRev = r.rev;
+      renderAdminRows(false);
+      if (state.recordsRev !== adminRev) syncRecords();
+    }, function () { fetchingRecords = false; });
+  }
+
+  function whenOf(at) {
+    var d = new Date(at);
+    if (isNaN(d) || d.getTime() === 0) return '-';
+    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  function visibleRecords() {
+    if (showAll) return adminRecords;
+    return adminRecords.filter(function (d) { return d.score > 0; }).slice(0, 5);
+  }
+
   function renderAdminRows(force) {
-    var records = state.hall;
-    var key = JSON.stringify(records);
+    var list = visibleRecords();
+    var key = JSON.stringify([showAll, list]);
     if (!force && key === renderedHallKey) return;
-    // 입력 중이던 값은 기록 id 기준으로 살려 둔다
+    // 입력 중이던 값은 기록 id·칸 기준으로 살려 둔다
     var drafts = {};
     if (!force) {
       document.querySelectorAll('#rows input[data-id]').forEach(function (el) {
-        if (el.value !== el.dataset.saved) drafts[el.dataset.id] = el.value;
+        if (el.value !== el.dataset.saved) drafts[el.dataset.id + '|' + el.dataset.field] = el.value;
       });
     }
     renderedHallKey = key;
+    var draft = function (id, field, v) { var k = id + '|' + field; return Object.prototype.hasOwnProperty.call(drafts, k) ? drafts[k] : String(v); };
     var pending = 0;
-    var html = records.map(function (d, i) {
+    var html = list.map(function (d, i) {
       var temp = d.name === TEMP_NAME;
       if (temp) pending++;
-      var row = 'display:grid;grid-template-columns:70px minmax(0,1fr) 150px 140px;gap:16px;align-items:center;padding:14px 18px;border-radius:14px;' + (temp ? 'background:#2A1610;border:1px solid #6B4318' : 'border:1px solid #2E1B17');
-      var input = 'box-sizing:border-box;width:100%;height:52px;padding:0 ' + (temp ? '110px' : '16px') + ' 0 16px;border-radius:10px;font-family:inherit;font-size:26px;color:#F3E6E1;background:#120807;border:2px solid ' + (temp ? '#FFB21E' : '#4A2E28');
-      var value = Object.prototype.hasOwnProperty.call(drafts, d.id) ? drafts[d.id] : d.name;
-      var when = new Date(d.at);
-      var whenText = isNaN(when) ? '' : (when.getMonth() + 1) + '/' + when.getDate() + ' ' + String(when.getHours()).padStart(2, '0') + ':' + String(when.getMinutes()).padStart(2, '0');
+      var row = 'display:grid;grid-template-columns:' + ROW_COLS + ';gap:12px;align-items:center;padding:8px 14px;border-radius:14px;' + (temp ? 'background:#2A1610;border:1px solid #6B4318' : 'border:1px solid #2E1B17');
+      var field = 'box-sizing:border-box;width:100%;height:46px;border-radius:10px;font-family:inherit;color:#F3E6E1;background:#120807;border:2px solid ';
+      var nameStyle = field + (temp ? '#FFB21E' : '#4A2E28') + ';padding:0 ' + (temp ? '96px' : '14px') + ' 0 14px;font-size:24px';
+      var scoreStyle = field + '#4A2E28;padding:0 10px;font-size:26px;color:#FFB21E;font-variant-numeric:tabular-nums';
+      var label = (i + 1) + '위 ' + d.name;
       return '<div style="' + row + '">' +
-        '<div style="font-size: 30px; color:' + (MEDAL[i] || '#C9B3AC') + '">' + (i + 1) + '</div>' +
+        '<div style="font-size: 26px; color:' + (MEDAL[i] || '#C9B3AC') + '">' + (i + 1) + '</div>' +
         '<div style="position: relative; min-width: 0">' +
-        '<label for="name-' + (i + 1) + '" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">' + (i + 1) + '위 이름</label>' +
-        '<input id="name-' + (i + 1) + '" type="text" maxlength="20" data-id="' + esc(d.id) + '" data-saved="' + esc(d.name) + '" value="' + esc(value) + '" style="' + input + '">' +
-        // 다섯 줄이 모두 임시 이름이어도 넘치지 않도록 안내 문구는 입력 칸 오른쪽 안에 표시
-        (temp ? '<div style="position: absolute; right: 16px; top: 0; bottom: 0; display: flex; align-items: center; pointer-events: none; font-size: 18px; color: #FFB21E">임시 이름</div>' : '') +
+        '<input type="text" maxlength="20" aria-label="' + esc(label) + ' 이름" data-id="' + esc(d.id) + '" data-field="name" data-saved="' + esc(d.name) + '" value="' + esc(draft(d.id, 'name', d.name)) + '" style="' + nameStyle + '">' +
+        (temp ? '<div style="position: absolute; right: 14px; top: 0; bottom: 0; display: flex; align-items: center; pointer-events: none; font-size: 17px; color: #FFB21E">임시 이름</div>' : '') +
         '</div>' +
-        '<div style="font-size: 34px; color: #FFB21E; font-variant-numeric: tabular-nums">' + d.score + '</div>' +
-        '<div style="font-size: 18px; color: #8E7770">' + whenText + '</div>' +
+        '<input type="number" min="0" max="9999" step="1" aria-label="' + esc(label) + ' 점수" data-id="' + esc(d.id) + '" data-field="score" data-saved="' + d.score + '" value="' + esc(draft(d.id, 'score', d.score)) + '" style="' + scoreStyle + '">' +
+        '<div style="font-size: 17px; color: #8E7770; white-space: nowrap">' + whenOf(d.at) + '</div>' +
+        '<button type="button" data-del="' + esc(d.id) + '" title="이 기록 지우기" aria-label="' + esc(label) + ' 기록 지우기" style="width: 44px; height: 44px; border-radius: 10px; border: 2px solid #5A3A33; background: transparent; color: #FF8A7A; font-family: inherit; font-size: 24px; line-height: 1; cursor: pointer">✕</button>' +
         '</div>';
     }).join('');
-    if (!records.length) {
+    if (!list.length) {
       html = '<div style="padding: 40px 18px; font-size: 24px; color: #8E7770; text-align: center">아직 기록이 없습니다</div>';
     }
     $('rows').innerHTML = html;
-    $('pending').textContent = '이름 입력이 필요한 기록 ' + pending + '개';
+    $('records-title').textContent = showAll ? '전체 기록 (' + adminRecords.length + '개)' : '명예의 전당';
+    $('btn-toggle-records').textContent = showAll ? '명예의 전당만 보기' : '전체 기록 보기 (' + (state.recordsTotal || 0) + '개)';
+    $('pending').textContent = pending ? '임시 이름 ' + pending + '개' : '';
   }
 
   function port(name, detail, ok, color, extra) {
@@ -307,6 +339,7 @@
 
   function renderAdmin() {
     var g = state.game;
+    syncRecords();
     renderAdminRows(false);
     var lbl = stateLabel(g);
     $('state-text').textContent = lbl[0];
@@ -354,16 +387,45 @@
     $('main').hidden = false;
   }
 
-  function saveNames() {
-    var names = {};
-    document.querySelectorAll('#rows input[data-id]').forEach(function (el) { names[el.dataset.id] = el.value; });
-    api.saveNames(names).then(function (ok) {
-      var msg = $('names-msg');
-      msg.textContent = ok ? '이름을 저장했습니다.' : '저장에 실패했습니다.';
-      msg.style.color = ok ? '#7BE08A' : '#FF8A7A';
+  function recordsMsg(text, ok) {
+    var msg = $('names-msg');
+    msg.textContent = text;
+    msg.style.color = ok ? '#7BE08A' : '#FF8A7A';
+  }
+
+  /** 바뀐 이름·점수만 모아서 저장 */
+  function saveRecords() {
+    var edits = {}, count = 0, bad = 0;
+    document.querySelectorAll('#rows input[data-id]').forEach(function (el) {
+      if (el.value === el.dataset.saved) return;
+      var id = el.dataset.id, f = el.dataset.field, v = el.value;
+      if (f === 'score') {
+        var n = Math.round(Number(v));
+        if (v.trim() === '' || !isFinite(n) || n < 0 || n > 9999) { bad++; return; }
+        v = n;
+      }
+      (edits[id] = edits[id] || {})[f] = v;
+      count++;
+    });
+    if (bad) { recordsMsg('점수는 0~9999 숫자만 됩니다.', false); return; }
+    if (!count) { recordsMsg('바뀐 내용이 없습니다.', true); return; }
+    api.saveRecords(edits).then(function (ok) {
+      recordsMsg(ok ? '저장했습니다. 순위를 다시 매겼습니다.' : '저장에 실패했습니다.', ok);
+      // 저장한 값으로 다시 그리도록 입력 중 값은 버린다
+      document.querySelectorAll('#rows input[data-id]').forEach(function (el) { el.dataset.saved = el.value; });
       renderedHallKey = '';
-      // 저장 직후 상태가 오면 다시 그리도록 강제
-      api.getState().then(function (s) { state = s; renderAdminRows(true); renderAdmin(); });
+    });
+  }
+
+  function deleteRecord(id) {
+    var list = visibleRecords(), i = -1;
+    for (var k = 0; k < list.length; k++) if (list[k].id === id) i = k;
+    if (i < 0) return;
+    var d = list[i];
+    if (!window.confirm((i + 1) + '위 ' + d.name + ' (' + d.score + '점) 기록을 지울까요?')) return;
+    api.deleteRecords([id]).then(function (ok) {
+      recordsMsg(ok ? '기록을 지웠습니다.' : '기록 삭제에 실패했습니다.', ok);
+      renderedHallKey = '';
     });
   }
 
@@ -383,14 +445,21 @@
   $('btn-fullscreen').addEventListener('click', function () { api.toggleFullscreen(); });
   $('btn-start').addEventListener('click', function () { api.start(); });
   $('btn-stop').addEventListener('click', function () { api.stop(); });
-  $('btn-save-names').addEventListener('click', saveNames);
+  $('btn-save-names').addEventListener('click', saveRecords);
+  $('btn-toggle-records').addEventListener('click', function () {
+    showAll = !showAll;
+    renderAdminRows(false);
+    $('rows').scrollTop = 0;
+  });
+  $('rows').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-del]') : null;
+    if (b) deleteRecord(b.dataset.del);
+  });
   $('btn-reset-records').addEventListener('click', function () {
-    var n = state && state.hall ? state.hall.length : 0;
-    if (!window.confirm('명예의 전당 ' + n + '개와 전체 순위 기록을 모두 지울까요?\n(지우기 전 파일은 데이터 폴더에 백업됩니다)')) return;
+    var n = state ? state.recordsTotal || 0 : 0;
+    if (!window.confirm('기록 ' + n + '개(명예의 전당 포함)를 모두 지울까요?\n(지우기 전 파일은 데이터 폴더에 백업됩니다)')) return;
     api.resetRecords().then(function (ok) {
-      var msg = $('names-msg');
-      msg.textContent = ok ? '기록을 모두 지웠습니다.' : '기록 삭제에 실패했습니다.';
-      msg.style.color = ok ? '#7BE08A' : '#FF8A7A';
+      recordsMsg(ok ? '기록을 모두 지웠습니다.' : '기록 삭제에 실패했습니다.', ok);
       renderedHallKey = '';
     });
   });
@@ -406,7 +475,7 @@
     if (window.confirm('앱을 종료할까요?')) api.quit();
   });
   $('rows').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.isComposing) saveNames();
+    if (e.key === 'Enter' && !e.isComposing) saveRecords();
   });
 
   // ───────────────────────── 키보드 ─────────────────────────
