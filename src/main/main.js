@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { app, BrowserWindow, ipcMain, Menu, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, powerSaveBlocker, shell } = require('electron');
 const { Game } = require('./game');
 const hall = require('./hall');
 const { Store, normalizeSettings } = require('./store');
@@ -13,6 +13,9 @@ const START_SIM = argv.includes('--sim');
 // 시작 화면: --windowed / --fullscreen 이 있으면 그걸 따르고, 없으면 마지막으로 고른 방식(settings.fullscreen)
 const FORCE_WINDOWED = argv.includes('--windowed');
 const FORCE_FULLSCREEN = argv.includes('--fullscreen');
+// Geometry Dash (Steam app 322170). Steam이 꺼져 있어도 Steam이 먼저 켜진다.
+const GAME_STEAM_URL = 'steam://rungameid/322170';
+const LAUNCH_GAME = !argv.includes('--no-game');
 
 if (!app.requestSingleInstanceLock()) {
   // 두 개가 뜨면 시리얼 포트를 서로 뺏으므로 하나만 실행
@@ -109,7 +112,10 @@ function createWindow(full) {
       sandbox: true,
     },
   });
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    win.show();
+    if (LAUNCH_GAME) shell.openExternal(GAME_STEAM_URL).catch((err) => console.error('[main] 게임 실행 실패:', err.message));
+  });
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   win.webContents.on('did-finish-load', () => push(true));
   // macOS 초록 버튼 등으로 바뀐 경우도 화면에 반영

@@ -245,12 +245,11 @@
   }
 
   function port(name, path, ok, color) {
-    var dot = 'width:14px;height:14px;border-radius:7px;flex:none;background:' + (ok ? '#4CD964' : '#FF5A47') + ';box-shadow:0 0 10px ' + (ok ? '#4CD964' : '#FF5A47');
-    return '<div style="display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 14px; background: #241411">' +
-      '<div style="' + dot + '" aria-hidden="true"></div>' +
+    var tone = ok ? '#7BE08A' : '#8E7770';
+    return '<div style="display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 14px; background: #241411">' +
       '<div style="font-size: 22px; flex: none; color:' + color + '">' + name + '</div>' +
-      '<div style="font-size: 16px; color: #B8A29B; flex-grow: 1; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis" title="' + esc(path) + '">' + esc(path) + '</div>' +
-      '<div style="font-size: 20px; color:' + (ok ? '#7BE08A' : '#FF8A7A') + '">' + (ok ? '연결됨' : '연결 끊김') + '</div>' +
+      '<div style="font-size: 16px; color: #8E7770; flex-grow: 1; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis" title="' + esc(path) + '">' + esc(path) + '</div>' +
+      '<div style="flex: none; font-size: 18px; padding: 3px 12px; border-radius: 999px; border: 1px solid ' + tone + '; color: ' + tone + '">' + (ok ? '연결됨' : '끊김') + '</div>' +
       '</div>';
   }
 
@@ -293,13 +292,10 @@
   }
 
   // ───────────────────────── 관리자 화면 열기 / 닫기 ─────────────────────────
-  var isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-  $('shortcut').textContent = isMac ? 'Control + D' : 'Ctrl + D';
-  $('fs-shortcut').textContent = isMac ? 'F11 / Control + Cmd + F' : 'F11';
-
   function openAdmin() {
     adminOpen = true;
     releaseSimKeys();
+    $('secret').hidden = true;
     $('admin').hidden = false;
     $('main').hidden = true;
     renderAdminRows(true);
@@ -312,7 +308,20 @@
     if (document.activeElement) document.activeElement.blur();
     $('admin').hidden = true;
     $('main').hidden = false;
+    $('secret').hidden = false;
   }
+
+  // 관중 화면에서는 키보드로 관리자 화면을 열 수 없다. 왼쪽 위 모서리를 2초 안에 다섯 번 누르면 연다.
+  var secretClicks = [];
+  $('secret').addEventListener('click', function () {
+    var t = Date.now();
+    secretClicks = secretClicks.filter(function (x) { return t - x < 2000; });
+    secretClicks.push(t);
+    if (secretClicks.length >= 5) {
+      secretClicks = [];
+      openAdmin();
+    }
+  });
 
   function saveNames() {
     var names = {};
@@ -367,18 +376,6 @@
   }
 
   window.addEventListener('keydown', function (e) {
-    // 전체화면 ↔ 창 모드 (관중 화면·관리자 화면 어디서나)
-    if (e.key === 'F11' || (isMac && e.code === 'KeyF' && e.ctrlKey && e.metaKey)) {
-      e.preventDefault();
-      if (!e.repeat) api.toggleFullscreen();
-      return;
-    }
-    // 관리자 화면: Control + D (Windows는 Ctrl + D). macOS의 Cmd 는 Control 과 별개라 Control 키만 본다.
-    if (e.code === 'KeyD' && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-      e.preventDefault();
-      if (adminOpen) closeAdmin(); else openAdmin();
-      return;
-    }
     if (adminOpen) {
       if (e.key === 'Escape') { e.preventDefault(); closeAdmin(); }
       return;

@@ -7,6 +7,10 @@ Windows / macOS 둘 다 지원하고, 인터넷 없이 동작합니다(Do Hyeon 
 
 ## 실행
 
+가장 간단한 방법: `run.bat`을 더블클릭하면 스코어보드가 바로 뜨고, Steam의 Geometry Dash도 함께 실행됩니다. 처음 실행할 때는 패키지를 자동으로 설치합니다(Node.js 필요).
+
+관리자 화면은 키보드로 열리지 않습니다. 관중 화면 왼쪽 위 모서리를 2초 안에 다섯 번 누르면 열립니다.
+
 ```bash
 npm install
 npm start          # 실제 아두이노와 함께 (전체화면 kiosk)
